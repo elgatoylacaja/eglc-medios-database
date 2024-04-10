@@ -1,0 +1,40 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Channel {
+  id              String  @id @default(cuid())
+  name            String
+  handle          String
+  subscriberCount Int
+  videoCount      Int
+  viewCount       BigInt
+  videos          Video[]
+}
+
+model Video {
+  id           String    @id @default(cuid())
+  title        String
+  publishedAt  DateTime
+  viewCount    BigInt
+  likeCount    Int
+  commentCount Int
+  duration     String
+  channelId    String
+  channel      Channel   @relation(fields: [channelId], references: [id])
+  comments     Comment[]
+}
+
+model Comment {
+  id               String @id @default(cuid())
+  textDisplay      String
+  authorChannelUrl String
+  authorChannelId  String
+  videoId          String
+  video            Video  @relation(fields: [videoId], references: [id])
+}
