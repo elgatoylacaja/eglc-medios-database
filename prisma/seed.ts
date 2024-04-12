@@ -1,8 +1,25 @@
-import { PrismaClient, Prisma } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import { readFile, readdir } from "fs/promises";
 import { DatabaseItem } from "../src/lib/types";
+import { executeSequentially, getThumbnail } from "../src/lib/utils";
 
 const prisma = new PrismaClient();
+
+function normalizeItem(item: DatabaseItem): DatabaseItem {
+  return {
+    ...item,
+    // make sure that videos with certain id appear only once
+    videos: item.videos.filter((video, index, self) => {
+      const condition = self.findIndex((v) => v.id === video.id) === index;
+      if (!condition) {
+        console.log(
+          `Video: ${video.id} of channel: ${item.channel.id} is duplicated. Skipping...`
+        );
+      }
+      return condition;
+    }),
+  };
+}
 
 async function main() {
   console.log(`Start seeding ...`);
@@ -16,32 +33,34 @@ async function main() {
     handles.map((handle) =>
       readFile(`./channels/database-${handle}.json`, {
         encoding: "utf-8",
-      }).then((data) => JSON.parse(data) as DatabaseItem)
+      })
+        .then((data) => JSON.parse(data) as DatabaseItem)
+        .then(normalizeItem)
     )
   );
 
-  for (const channel of channels) {
-    const channelData = await prisma.channel
-      .create({
-        data: {
-          id: channel.channel.id,
-          name: channel.name,
-          handle: channel.handle,
-          subscriberCount: parseInt(channel.channel.subscriberCount) || 0,
-          videoCount: parseInt(channel.channel.videoCount) || 0,
-          viewCount: parseInt(channel.channel.viewCount) || 0,
-        },
-      })
-      .catch((e) => {
-        console.error(e);
-        console.log(channel.channel);
-        return;
-      });
+  await prisma.channel.createMany({
+    data: channels.map((item) => {
+      const {
+        channel: { id, subscriberCount, videoCount, viewCount },
+        name,
+        handle,
+      } = item;
+      console.log(`Creating channel with id: ${id}`);
+      return {
+        id,
+        name,
+        handle,
+        videoCount: parseInt(videoCount) || 0,
+        subscriberCount: parseInt(subscriberCount) || 0,
+        viewCount: parseInt(viewCount) || 0,
+      };
+    }),
+  });
 
-    console.log(`Created channel with id: ${channel.handle}`);
-
-    if (channelData) {
-      for (const video of channel.videos) {
+  await prisma.video.createMany({
+    data: channels.flatMap((item) => {
+      return item.videos.map((video) => {
         const {
           id,
           title,
@@ -50,42 +69,60 @@ async function main() {
           likeCount,
           commentCount,
           duration,
-          comments,
+          thumbnails,
+          description,
         } = video;
-        const videoData = await prisma.video.create({
-          data: {
-            id,
-            title,
-            publishedAt,
-            viewCount: parseInt(viewCount) || 0,
-            likeCount: parseInt(likeCount) || 0,
-            commentCount: parseInt(commentCount) || 0,
-            duration,
-            channel: {
-              connect: {
-                id: channelData.id,
-              },
-            },
-          },
-        });
+        return {
+          id,
+          title,
+          publishedAt,
+          viewCount: parseInt(viewCount) || 0,
+          likeCount: parseInt(likeCount) || 0,
+          commentCount: parseInt(commentCount) || 0,
+          duration,
+          thumbnail: getThumbnail(thumbnails) || "",
+          description,
+          channelId: item.channel.id,
+        };
+      });
+    }),
+  });
 
-        for (const comment of comments) {
-          const commentData = await prisma.comment.create({
-            data: {
+  await executeSequentially(
+    channels.flatMap((item) => {
+      return item.videos.map((video) => {
+        return async () => {
+          const comments = video.comments.map((comment) => {
+            return {
               textDisplay: comment.textDisplay,
               authorChannelUrl: comment.authorChannelUrl,
               authorChannelId: comment.authorChannelId,
-              video: {
-                connect: {
-                  id: videoData.id,
-                },
-              },
-            },
+              videoId: video.id,
+            };
           });
-        }
-      }
-    }
-  }
+
+          await prisma.comment.createMany({
+            data: comments,
+          });
+        };
+      });
+    })
+  );
+
+  // await prisma.comment.createMany({
+  //   data: channels.flatMap((item) => {
+  //     return item.videos.flatMap((video) => {
+  //       return video.comments.map((comment) => {
+  //         return {
+  //           textDisplay: comment.textDisplay,
+  //           authorChannelUrl: comment.authorChannelUrl,
+  //           authorChannelId: comment.authorChannelId,
+  //           videoId: video.id,
+  //         };
+  //       });
+  //     });
+  //   }),
+  // });
 
   console.log(`Seeding finished.`);
 }

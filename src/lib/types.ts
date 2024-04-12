@@ -16,9 +16,13 @@ type PageInfo = {
   resultsPerPage: number;
 };
 
-type Thumbnails = Partial<
-  Record<"default" | "medium" | "high" | "standard" | "maxres", Thumbnail>
->;
+export type ThumbnailKey =
+  | "default"
+  | "medium"
+  | "high"
+  | "standard"
+  | "maxres";
+type Thumbnails = Partial<Record<ThumbnailKey, Thumbnail>>;
 
 type ChannelSnippet = {
   title: string;
@@ -199,7 +203,10 @@ export type DatabaseItem = {
       "subscriberCount" | "videoCount" | "viewCount"
     >;
   videos: (Pick<VideoItem, "id"> &
-    Pick<VideoItem["snippet"], "title" | "publishedAt"> &
+    Pick<
+      VideoItem["snippet"],
+      "title" | "publishedAt" | "thumbnails" | "description"
+    > &
     Pick<VideoItem["statistics"], "viewCount" | "likeCount" | "commentCount"> &
     Pick<VideoItem["contentDetails"], "duration"> & {
       comments: (Pick<CommentSnippet, "textDisplay" | "authorChannelUrl"> & {

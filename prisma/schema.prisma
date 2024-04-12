@@ -3,12 +3,12 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = "postgresql://juanchi:JT%2375gka3YR@localhost:5432/canales-digitales"
 }
 
 model Channel {
-  id              String  @id @default(cuid())
+  id              String  @id @default(uuid())
   name            String
   handle          String
   subscriberCount Int
@@ -18,7 +18,7 @@ model Channel {
 }
 
 model Video {
-  id           String    @id @default(cuid())
+  id           String    @id @default(uuid())
   title        String
   publishedAt  DateTime
   viewCount    BigInt
@@ -27,11 +27,13 @@ model Video {
   duration     String
   channelId    String
   channel      Channel   @relation(fields: [channelId], references: [id])
+  thumbnail    String
+  description  String
   comments     Comment[]
 }
 
 model Comment {
-  id               String @id @default(cuid())
+  id               String @id @default(uuid())
   textDisplay      String
   authorChannelUrl String
   authorChannelId  String
