@@ -1,3 +1,4 @@
+import { Video } from "@prisma/client";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
@@ -6,56 +7,53 @@ import {
   Eye,
   MessageCircle,
   ThumbsUp,
+  Video as VideoIcon,
 } from "react-feather";
 import { twMerge } from "tailwind-merge";
 import ChannelCard from "../../../../components/ChannelCard";
 import VideoCard from "../../../../components/VideoCard";
-import { VideoItem } from "../../../../lib/types";
-import { isEligible } from "../../../../lib/utils";
-import { YoutubeAPI } from "../../../../lib/youtube";
+import prisma from "../../../../lib/prisma";
 
 type Props = {
   params: { handle: string };
-  searchParams: { sortBy: string };
+  searchParams: { sortBy: SortKey };
 };
 
-type SortFn = (a: VideoItem, b: VideoItem) => number;
+type SortFn = (a: Video, b: Video) => number;
+type SortKey =
+  | "uploaded"
+  | "views"
+  | "likes"
+  | "comments"
+  | "likes_per_view"
+  | "comments_per_view";
 
-const sortFns: Record<string, SortFn> = {
+const sortFns: Record<SortKey, SortFn> = {
   uploaded: (a, b) => {
-    return a.snippet.publishedAt < b.snippet.publishedAt ? 1 : -1;
+    return a.publishedAt < b.publishedAt ? 1 : -1;
   },
   views: (a, b) => {
-    return parseInt(b.statistics.viewCount) - parseInt(a.statistics.viewCount);
+    return parseInt(b.viewCount.toString()) - parseInt(a.viewCount.toString());
   },
   likes: (a, b) => {
-    return (
-      parseInt(b.statistics.likeCount || "0") -
-      parseInt(a.statistics.likeCount || "0")
-    );
+    return b.likeCount - a.likeCount;
   },
   comments: (a, b) => {
-    return (
-      parseInt(b.statistics.commentCount || "0") -
-      parseInt(a.statistics.commentCount || "0")
-    );
+    return b.commentCount - a.commentCount;
   },
   likes_per_view: (a, b) => {
     return (
-      parseInt(b.statistics.likeCount || "0") /
-        parseInt(b.statistics.viewCount) -
-      parseInt(a.statistics.likeCount || "0") / parseInt(a.statistics.viewCount)
+      b.likeCount / parseInt(b.viewCount.toString()) -
+      a.likeCount / parseInt(a.viewCount.toString())
     );
   },
   comments_per_view: (a, b) => {
     return (
-      parseInt(b.statistics.commentCount || "0") /
-        parseInt(b.statistics.viewCount) -
-      parseInt(a.statistics.commentCount || "0") /
-        parseInt(a.statistics.viewCount)
+      b.commentCount / parseInt(b.viewCount.toString()) -
+      a.commentCount / parseInt(a.viewCount.toString())
     );
   },
-};
+} as const;
 
 export default async function Page(props: Props) {
   const {
@@ -63,23 +61,33 @@ export default async function Page(props: Props) {
     searchParams: { sortBy = "uploaded" },
   } = props;
 
-  const API = new YoutubeAPI();
+  // const channel = await API.fetchChannelData(`@${handle}`);
+  const channel = await prisma.channel.findFirst({
+    where: { handle: `@${handle}` },
+  });
 
-  const channel = await API.fetchChannelData(`@${handle}`);
-
-  if (channel === undefined) {
+  if (channel === null) {
     return notFound();
   }
 
-  const videos = await API.fetchPlaylistItems(
-    channel.contentDetails.relatedPlaylists.uploads,
-    { maxResults: 50 }
-  )
-    .then((res) => {
-      const ids = res.map((_) => _.snippet.resourceId.videoId);
-      return API.fetchVideosData(ids);
-    })
-    .then((videos) => videos.filter(isEligible));
+  const orderBy = {
+    uploaded: { publishedAt: "desc" },
+    views: { viewCount: "desc" },
+    likes: { likeCount: "desc" },
+    comments: { commentCount: "desc" },
+    likes_per_view: { likeCount: "desc" },
+    comments_per_view: { commentCount: "desc" },
+  } as const;
+
+  const videos = await prisma.video.findMany({
+    where: { channelId: channel.id },
+    take: 50,
+    orderBy: orderBy[sortBy],
+  });
+
+  const videoCount = await prisma.video.count({
+    where: { channelId: channel.id },
+  });
 
   return (
     <div className="flex flex-col gap-2">

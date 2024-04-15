@@ -94,3 +94,13 @@ export function hasComments(video: VideoItem) {
 export function isEligible(video: VideoItem) {
   return !isLiveOrScheduled(video) && !isShort(video) && hasComments(video);
 }
+
+export function secondsToString(seconds: number) {
+  // returns HH:MM:SS
+  const hh = Math.floor(seconds / 3600);
+  const mm = Math.floor((seconds % 3600) / 60);
+  const ss = seconds % 60;
+  return `${hh.toString().padStart(2, "0")}:${mm
+    .toString()
+    .padStart(2, "0")}:${ss.toString().padStart(2, "0")}`;
+}

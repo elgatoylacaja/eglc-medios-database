@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, Calendar, ThumbsUp } from "react-feather";
 import VideoCard from "../../../../../../components/VideoCard";
 import { YoutubeAPI } from "../../../../../../lib/youtube";
+import prisma from "../../../../../../lib/prisma";
 
 type Props = {
   params: { id: string; handle: string };
@@ -13,17 +14,19 @@ export default async function Page(props: Props) {
     params: { id, handle },
   } = props;
 
-  const API = new YoutubeAPI();
+  const video = await prisma.video.findUnique({
+    where: {
+      id,
+    },
+  });
 
-  const videos = await API.fetchVideosData([id]);
-
-  if (videos.length < 1) {
+  if (video === null) {
     return notFound();
   }
 
-  const video = videos[0];
-
-  const comments = await API.fetchVideoComments(video.id, { maxResults: 500 });
+  const comments = await prisma.comment.count({
+    where: { videoId: id },
+  });
 
   return (
     <div className="flex flex-col gap-2">
@@ -38,7 +41,9 @@ export default async function Page(props: Props) {
       </Link>
       <VideoCard video={video} key={video.id} className="max-w-96" />
       <div className="flex flex-col gap-4">
-        {comments
+        <span>Video comments: {video.commentCount}</span>
+        <span>Saved comments: {comments}</span>
+        {/* {comments
           .sort((a, b) => {
             return a.snippet.topLevelComment.snippet.likeCount <
               b.snippet.topLevelComment.snippet.likeCount
@@ -126,7 +131,7 @@ export default async function Page(props: Props) {
                 )}
               </div>
             )
-          )}
+          )} */}
       </div>
     </div>
   );

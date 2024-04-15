@@ -1,22 +1,16 @@
-import { parse } from "iso8601-duration";
+import { Channel, Video } from "@prisma/client";
 import Link from "next/link";
 import { Calendar, Clock, Eye, MessageCircle, ThumbsUp } from "react-feather";
 import { twMerge } from "tailwind-merge";
-import { ChannelItem, VideoItem } from "../lib/types";
-import { getThumbnail } from "../lib/utils";
+import { secondsToString } from "../lib/utils";
 
 export default function VideoCard(props: {
-  channel?: ChannelItem;
-  video: VideoItem;
+  channel?: Channel;
+  video: Video;
   className?: string;
 }) {
   const { channel, video, className } = props;
-  const duration = parse(video.contentDetails.duration);
-  const [hh, mm, ss] = [
-    duration.hours?.toString().padStart(2, "0"),
-    duration.minutes?.toString().padStart(2, "0"),
-    duration.seconds?.toString().padStart(2, "0"),
-  ];
+  const duration = secondsToString(video.duration);
 
   return (
     <Link
@@ -27,66 +21,54 @@ export default function VideoCard(props: {
       )}
       href={
         channel
-          ? `/youtube/channels/${channel.snippet.customUrl.replace(
-              "@",
-              ""
-            )}/videos/${video.id}`
+          ? `/youtube/channels/${channel.handle.replace("@", "")}/videos/${
+              video.id
+            }`
           : `https://youtube.com/watch?v=${video.id}`
       }
       target="_blank"
     >
       <img
         className="group-hover:scale-105 transition-transform"
-        src={getThumbnail(video.snippet.thumbnails)}
+        src={video.thumbnail}
         alt=""
       />
       <div className="flex flex-col gap-1 p-1">
-        <div className="text-sm">{video.snippet.title}</div>
-        <p className="text-xs line-clamp-3">{video.snippet.description}</p>
+        <div className="text-sm">{video.title}</div>
+        <p className="text-xs line-clamp-3">{video.description}</p>
         <div className="flex flex-wrap gap-1">
           <div className="flex justify-center items-center py-1 bg-black/5 w-fit rounded px-2 gap-1 text-xs">
             <Calendar size={12} />
             <span>
               Uploaded:{" "}
-              {new Date(video.snippet.publishedAt).toLocaleDateString("es-AR")}
+              {new Date(video.publishedAt).toLocaleDateString("es-AR")}
             </span>
           </div>
           <div className="flex justify-center items-center py-1 bg-black/5 w-fit rounded px-2 gap-1 text-xs">
             <Clock size={12} />
-            <span>
-              Duration: {hh}:{mm}:{ss}
-            </span>
+            <span>Duration: {duration}</span>
           </div>
 
-          {video.statistics.likeCount && (
+          {video.likeCount ? (
             <div className="flex justify-center items-center py-1 bg-black/5 w-fit rounded px-2 gap-1 text-xs">
               <ThumbsUp size={12} />
               <span>
-                Likes:{" "}
-                {parseInt(video.statistics.likeCount)
-                  .toLocaleString()
-                  .replace(",", ".")}
+                Likes: {video.likeCount.toLocaleString().replace(",", ".")}
               </span>
             </div>
-          )}
+          ) : null}
 
           <div className="flex justify-center items-center py-1 bg-black/5 w-fit rounded px-2 gap-1 text-xs">
             <MessageCircle size={12} />
             <span>
-              Comments:{" "}
-              {parseInt(video.statistics.commentCount)
-                .toLocaleString()
-                .replace(",", ".")}
+              Comments: {video.commentCount.toLocaleString().replace(",", ".")}
             </span>
           </div>
 
           <div className="flex justify-center items-center py-1 bg-black/5 w-fit rounded px-2 gap-1 text-xs">
             <Eye size={12} />
             <span>
-              Views:{" "}
-              {parseInt(video.statistics.viewCount)
-                .toLocaleString()
-                .replace(",", ".")}
+              Views: {video.viewCount.toLocaleString().replace(",", ".")}
             </span>
           </div>
 
@@ -95,24 +77,21 @@ export default function VideoCard(props: {
             <span>
               Comments per view:{" "}
               {(
-                parseInt(video.statistics.commentCount) /
-                parseInt(video.statistics.viewCount)
+                video.commentCount / parseInt(video.viewCount.toString())
               ).toFixed(6)}
             </span>
           </div>
-
-          {video.statistics.likeCount && (
+          {video.likeCount ? (
             <div className="flex justify-center items-center py-1 bg-black/5 w-fit rounded px-2 gap-1 text-xs">
               <ThumbsUp size={12} /> / <Eye size={12} />
               <span>
                 Likes per view:{" "}
                 {(
-                  parseInt(video.statistics.likeCount) /
-                  parseInt(video.statistics.viewCount)
+                  video.likeCount / parseInt(video.viewCount.toString())
                 ).toFixed(6)}
               </span>
             </div>
-          )}
+          ) : null}
         </div>
       </div>
     </Link>

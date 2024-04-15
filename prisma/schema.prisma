@@ -4,39 +4,75 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = "postgresql://juanchi:JT%2375gka3YR@localhost:5432/canales-digitales"
+  url      = "postgresql://juanchi:JT%2375gka3YR@localhost:5432/canales-digitales-youtube"
 }
 
 model Channel {
-  id              String  @id @default(uuid())
-  name            String
-  handle          String
+  id String @id
+
+  name        String
+  handle      String
+  description String
+  publishedAt DateTime
+  thumbnail   String   @default("")
+
+  viewCount       BigInt
   subscriberCount Int
   videoCount      Int
-  viewCount       BigInt
-  videos          Video[]
+
+  videos   Video[]
+  comments Comment[]
+
+  @@index([handle], name: "idx_channel_handle")
+  @@index([publishedAt], name: "idx_channel_publishedAt")
 }
 
 model Video {
-  id           String    @id @default(uuid())
-  title        String
-  publishedAt  DateTime
-  viewCount    BigInt
-  likeCount    Int
-  commentCount Int
-  duration     String
-  channelId    String
-  channel      Channel   @relation(fields: [channelId], references: [id])
-  thumbnail    String
-  description  String
-  comments     Comment[]
+  id        String @id @default(uuid())
+  channelId String
+
+  title       String
+  description String
+  publishedAt DateTime
+  thumbnail   String   @default("")
+  duration    Int
+
+  viewCount    BigInt @default(0)
+  likeCount    Int    @default(0)
+  commentCount Int    @default(0)
+
+  comments Comment[]
+
+  channel Channel @relation(fields: [channelId], references: [id])
+
+  @@index([channelId], name: "idx_video_channelId")
+  @@index([publishedAt], name: "idx_video_publishedAt")
 }
 
 model Comment {
-  id               String @id @default(uuid())
-  textDisplay      String
-  authorChannelUrl String
-  authorChannelId  String
-  videoId          String
-  video            Video  @relation(fields: [videoId], references: [id])
+  id        String @id @default(uuid())
+  channelId String
+  videoId   String
+  authorId  String
+
+  text        String
+  publishedAt DateTime
+  likeCount   Int      @default(0)
+
+  author  Author  @relation(fields: [authorId], references: [id])
+  video   Video   @relation(fields: [videoId], references: [id])
+  channel Channel @relation(fields: [channelId], references: [id])
+
+  @@index([channelId], name: "idx_comment_channelId")
+  @@index([videoId], name: "idx_comment_videoId")
+  @@index([authorId], name: "idx_comment_authorId")
+}
+
+model Author {
+  id String @id
+
+  name   String
+  avatar String
+
+  Comment Comment[]
 }

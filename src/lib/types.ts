@@ -171,6 +171,7 @@ type CommentSnippet = {
   authorProfileImageUrl: string;
   authorChannelUrl: string;
   authorChannelId: { value: string };
+  parentId: string;
   canRate: boolean;
   viewerRating: string;
   likeCount: number;
@@ -212,23 +213,9 @@ export type FullChannelResult = {
   videos: VideoWithComments[];
 };
 
-export type DatabaseItem = {
+export type Item = {
   name: string;
   handle: string;
-  channel: Pick<ChannelItem, "id"> &
-    Pick<
-      ChannelItem["statistics"],
-      "subscriberCount" | "videoCount" | "viewCount"
-    >;
-  videos: (Pick<VideoItem, "id"> &
-    Pick<
-      VideoItem["snippet"],
-      "title" | "publishedAt" | "thumbnails" | "description"
-    > &
-    Pick<VideoItem["statistics"], "viewCount" | "likeCount" | "commentCount"> &
-    Pick<VideoItem["contentDetails"], "duration"> & {
-      comments: (Pick<CommentSnippet, "textDisplay" | "authorChannelUrl"> & {
-        authorChannelId: CommentSnippet["authorChannelId"]["value"];
-      })[];
-    })[];
+  channel: ChannelItem;
+  videos: VideoWithComments[];
 };
