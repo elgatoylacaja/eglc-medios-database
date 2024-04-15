@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Calendar, ThumbsUp } from "react-feather";
-import VideoCard from "../../../../../../components/VideoCard";
-import { YoutubeAPI } from "../../../../../../lib/youtube";
-import prisma from "../../../../../../lib/prisma";
+import VideoCard from "../../../../../components/VideoCard";
+import { YoutubeAPI } from "../../../../../lib/youtube";
+import prisma from "../../../../../lib/prisma";
 
 type Props = {
   params: { id: string; handle: string };
@@ -31,7 +31,7 @@ export default async function Page(props: Props) {
   return (
     <div className="flex flex-col gap-2">
       <Link
-        href={`/youtube/channels/${handle}`}
+        href={`/channels/${handle}`}
         className={
           "flex justify-center items-center py-1 bg-black/5 w-fit rounded px-2 gap-1 text-xs transition-color"
         }

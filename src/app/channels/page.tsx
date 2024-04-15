@@ -1,6 +1,6 @@
 import Link from "next/link";
-import prisma from "../../../lib/prisma";
-import ChannelCard from "../../../components/ChannelCard";
+import prisma from "../../lib/prisma";
+import ChannelCard from "../../components/ChannelCard";
 
 export default async function Page() {
   const channels = await prisma.channel.findMany();
@@ -14,7 +14,7 @@ export default async function Page() {
         .map((channel) => {
           return (
             <Link
-              href={`/youtube/channels/${channel.handle.replace("@", "")}`}
+              href={`/channels/${channel.handle.replace("@", "")}`}
               className="flex gap-2 justify-start items-center hover:underline hover:text-blue-500"
               key={channel.id}
             >

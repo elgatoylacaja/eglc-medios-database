@@ -10,9 +10,9 @@ import {
   Video as VideoIcon,
 } from "react-feather";
 import { twMerge } from "tailwind-merge";
-import ChannelCard from "../../../../components/ChannelCard";
-import VideoCard from "../../../../components/VideoCard";
-import prisma from "../../../../lib/prisma";
+import ChannelCard from "../../../components/ChannelCard";
+import VideoCard from "../../../components/VideoCard";
+import prisma from "../../../lib/prisma";
 
 type Props = {
   params: { handle: string };
@@ -92,7 +92,7 @@ export default async function Page(props: Props) {
   return (
     <div className="flex flex-col gap-2">
       <Link
-        href={`/youtube/channels`}
+        href={`/channels`}
         key="uploaded"
         className={twMerge(
           "flex justify-center items-center py-1 bg-black/5 w-fit rounded px-2 gap-1 text-xs transition-color"
@@ -106,7 +106,7 @@ export default async function Page(props: Props) {
 
       <div className="flex flex-wrap gap-2">
         <Link
-          href={`/youtube/channels/${handle}?sortBy=uploaded`}
+          href={`/channels/${handle}?sortBy=uploaded`}
           key="uploaded"
           className={twMerge(
             "flex justify-center items-center py-1 bg-black/5 w-fit rounded px-2 gap-1 text-xs transition-color",
@@ -117,7 +117,7 @@ export default async function Page(props: Props) {
           <span>Uploaded</span>
         </Link>
         <Link
-          href={`/youtube/channels/${handle}?sortBy=views`}
+          href={`/channels/${handle}?sortBy=views`}
           key="views"
           className={twMerge(
             "flex justify-center items-center py-1 bg-black/5 w-fit rounded px-2 gap-1 text-xs transition-color",
@@ -128,7 +128,7 @@ export default async function Page(props: Props) {
           <span>Views</span>
         </Link>
         <Link
-          href={`/youtube/channels/${handle}?sortBy=likes`}
+          href={`/channels/${handle}?sortBy=likes`}
           key="likes"
           className={twMerge(
             "flex justify-center items-center py-1 bg-black/5 w-fit rounded px-2 gap-1 text-xs transition-color",
@@ -139,7 +139,7 @@ export default async function Page(props: Props) {
           <span>Likes</span>
         </Link>
         <Link
-          href={`/youtube/channels/${handle}?sortBy=comments`}
+          href={`/channels/${handle}?sortBy=comments`}
           key="comments"
           className={twMerge(
             "flex justify-center items-center py-1 bg-black/5 w-fit rounded px-2 gap-1 text-xs transition-color",
@@ -151,7 +151,7 @@ export default async function Page(props: Props) {
         </Link>
 
         <Link
-          href={`/youtube/channels/${handle}?sortBy=likes_per_view`}
+          href={`/channels/${handle}?sortBy=likes_per_view`}
           key="likes_per_view"
           className={twMerge(
             "flex justify-center items-center py-1 bg-black/5 w-fit rounded px-2 gap-1 text-xs transition-color",
@@ -162,7 +162,7 @@ export default async function Page(props: Props) {
           <span>Likes per view</span>
         </Link>
         <Link
-          href={`/youtube/channels/${handle}?sortBy=comments_per_view`}
+          href={`/channels/${handle}?sortBy=comments_per_view`}
           key="comments_per_view"
           className={twMerge(
             "flex justify-center items-center py-1 bg-black/5 w-fit rounded px-2 gap-1 text-xs transition-color",

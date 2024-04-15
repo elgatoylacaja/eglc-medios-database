@@ -21,7 +21,7 @@ export default function VideoCard(props: {
       )}
       href={
         channel
-          ? `/youtube/channels/${channel.handle.replace("@", "")}/videos/${
+          ? `/channels/${channel.handle.replace("@", "")}/videos/${
               video.id
             }`
           : `https://youtube.com/watch?v=${video.id}`
