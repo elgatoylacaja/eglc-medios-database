@@ -48,6 +48,16 @@ type Statistics = {
   videoCount: string;
 };
 
+type BrandingSettings = {
+  channel: {
+    title: string;
+    description: string;
+  };
+  image?: {
+    bannerExternalUrl: string;
+  };
+};
+
 export type ChannelItem = {
   kind: "youtube#channel";
   etag: string;
@@ -55,10 +65,11 @@ export type ChannelItem = {
   snippet: ChannelSnippet;
   contentDetails: ChannelContentDetails;
   statistics: Statistics;
+  brandingSettings: BrandingSettings;
 };
 
 export type ChannelListResponse = {
-  kind: string;
+  kind: "youtube#channelListResponse";
   etag: string;
   pageInfo: PageInfo;
   items: ChannelItem[];
@@ -85,7 +96,7 @@ type VideoInPlaylistContentDetails = {
 };
 
 export type PlaylistItem = {
-  kind: string;
+  kind: "youtube#playlistItem";
   etag: string;
   id: string;
   snippet: VideoInPlaylistSnippet;
@@ -109,6 +120,9 @@ type VideoSnippet = {
   thumbnails: Thumbnails;
   channelTitle: string;
   liveBroadcastContent: "live" | "none" | "upcoming";
+  tags: string[];
+  categoryId: string;
+  defaultLanguage: string;
 };
 
 type VideoContentDetails = {
@@ -118,13 +132,13 @@ type VideoContentDetails = {
 
 type VideoStatistics = {
   viewCount: string;
-  likeCount: string;
+  likeCount?: string;
   favoriteCount: string;
   commentCount: string;
 };
 
 export type VideoItem = {
-  kind: string;
+  kind: "youtube#video";
   etag: string;
   id: string;
   snippet: VideoSnippet;
@@ -133,7 +147,7 @@ export type VideoItem = {
 };
 
 export type VideoListResponse = {
-  kind: string;
+  kind: "youtube#videoListResponse";
   etag: string;
   pageInfo: PageInfo;
   items: VideoItem[];
@@ -143,32 +157,36 @@ type TopLevelCommentSnippet = {
   channelId: string;
   videoId: string;
   topLevelComment: CommentItem;
+  canReply: boolean;
+  totalReplyCount: number;
+  isPublic: boolean;
 };
 
 type CommentSnippet = {
+  channelId: string;
+  videoId: string;
+  textDisplay: string;
+  textOriginal: string;
   authorDisplayName: string;
   authorProfileImageUrl: string;
   authorChannelUrl: string;
   authorChannelId: { value: string };
-  channelId: string;
-  textDisplay: string;
-  textOriginal: string;
-  parentId: string;
   canRate: boolean;
   viewerRating: string;
   likeCount: number;
-  moderationStatus: string;
+  publishedAt: string;
+  updatedAt: string;
 };
 
 type CommentItem = {
-  kind: string;
+  kind: "youtube#comment";
   etag: string;
   id: string;
   snippet: CommentSnippet;
 };
 
 type TopLevelCommentItem = {
-  kind: string;
+  kind: "youtube#commentThread";
   etag: string;
   id: string;
   snippet: TopLevelCommentSnippet;
