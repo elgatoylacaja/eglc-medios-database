@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = "postgresql://juanchi:JT%2375gka3YR@localhost:5432/canales-digitales-youtube"
+  url      = "postgresql://juanignaciocuiule@localhost:5432/canales-digitales"
 }
 
 model Channel {
@@ -68,6 +68,8 @@ model Comment {
   @@index([channelId], name: "idx_comment_channelId")
   @@index([videoId], name: "idx_comment_videoId")
   @@index([authorId], name: "idx_comment_authorId")
+  @@index([publishedAt], name: "idx_comment_publishedAt")
+  @@index([videoPublishedAt], name: "idx_comment_videoPublishedAt")
 }
 
 model Author {
