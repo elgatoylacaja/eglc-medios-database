@@ -6,8 +6,7 @@ import {
   Calendar,
   Eye,
   MessageCircle,
-  ThumbsUp,
-  Video as VideoIcon,
+  ThumbsUp
 } from "react-feather";
 import { twMerge } from "tailwind-merge";
 import ChannelCard from "../../../components/ChannelCard";
