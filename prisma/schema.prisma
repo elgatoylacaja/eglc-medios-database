@@ -15,6 +15,7 @@ model Channel {
   description String
   publishedAt DateTime
   thumbnail   String   @default("")
+  banner      String   @default("")
 
   viewCount       BigInt
   subscriberCount Int
@@ -55,9 +56,10 @@ model Comment {
   videoId   String
   authorId  String
 
-  text        String
-  publishedAt DateTime
-  likeCount   Int      @default(0)
+  text             String
+  publishedAt      DateTime
+  videoPublishedAt DateTime
+  likeCount        Int      @default(0)
 
   author  Author  @relation(fields: [authorId], references: [id])
   video   Video   @relation(fields: [videoId], references: [id])
