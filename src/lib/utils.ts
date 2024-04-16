@@ -1,6 +1,11 @@
 import { parse, toSeconds } from "iso8601-duration";
-import prisma from "./prisma";
-import { PlaylistItem, ThumbnailKey, VideoItem } from "./types";
+import {
+  Item,
+  PlaylistItem,
+  ThumbnailKey,
+  TopLevelCommentItem,
+  VideoItem,
+} from "./types";
 
 export function getThumbnail(thumbnails: VideoItem["snippet"]["thumbnails"]) {
   const options: ThumbnailKey[] = [
@@ -16,24 +21,6 @@ export function getThumbnail(thumbnails: VideoItem["snippet"]["thumbnails"]) {
       return thumbnail.url;
     }
   }
-}
-
-export async function countCocommenters(
-  channelId: string,
-  otherChannelId: string
-): Promise<any> {
-  console.log(
-    `Counting co-commenters between channels ${channelId} and ${otherChannelId}`
-  );
-  const count = await prisma.$queryRaw`
-  with channelVideos as (select "id" from "Video" where "channelId" = ${channelId}),
-      otherChannelVideos as (select "id" from "Video" where "channelId" = ${otherChannelId}),
-      channelCommentAuthors as (select distinct "authorChannelId" from "Comment" where "videoId" in (select "id" from channelVideos)),
-      otherChannelCommentAuthors as (select distinct "authorChannelId" from "Comment" where "videoId" in (select "id" from otherChannelVideos))
-  
-  select count(*) froom channelCommentAuthors where "authorChannelId" in (select "authorChannelId" from otherChannelCommentAuthors)
-  `;
-  return count;
 }
 
 export async function executeSequentially<T>(promises: (() => Promise<T>)[]) {
@@ -103,4 +90,61 @@ export function secondsToString(seconds: number) {
   return `${hh.toString().padStart(2, "0")}:${mm
     .toString()
     .padStart(2, "0")}:${ss.toString().padStart(2, "0")}`;
+}
+
+export function flat<T>(_: T[]) {
+  return _.flat();
+}
+
+export function chunkArray<T>(array: T[], size: number) {
+  return Array.from({ length: Math.ceil(array.length / size) }, (_, i) =>
+    array.slice(i * size, i * size + size)
+  );
+}
+
+export function executeInChunks<T, U>(
+  array: T[],
+  size: number,
+  fn: (chunk: T[]) => U
+) {
+  return Promise.all(chunkArray(array, size).map(fn)).then(flat);
+}
+
+export function executeSecuentiallyInChunks<T, U>(
+  array: T[],
+  size: number,
+  fn: (chunk: T[], ...x: any[]) => Promise<U>
+) {
+  return executeSequentially(
+    chunkArray(array, size).map((chunk, i) => () => fn(chunk, i))
+  ).then(flat);
+}
+
+export function flattenCommentItem(item: TopLevelCommentItem) {
+  const {
+    replies,
+    snippet: {
+      topLevelComment: { snippet },
+    },
+  } = item;
+
+  return replies
+    ? [snippet, ...replies.comments.map((reply) => reply.snippet)]
+    : [snippet];
+}
+
+export function normalizeItem(item: Item): Item {
+  return {
+    ...item,
+    // make sure that videos with certain id appear only once
+    videos: item.videos.filter((video, index, self) => {
+      const condition = self.findIndex((v) => v.id === video.id) === index;
+      if (!condition) {
+        console.log(
+          `Video: ${video.id} of channel: ${item.channel.id} is duplicated. Skipping...`
+        );
+      }
+      return condition;
+    }),
+  };
 }

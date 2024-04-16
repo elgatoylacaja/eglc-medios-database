@@ -162,7 +162,7 @@ type TopLevelCommentSnippet = {
   isPublic: boolean;
 };
 
-type CommentSnippet = {
+export type CommentSnippet = {
   channelId: string;
   videoId: string;
   textDisplay: string;
@@ -186,7 +186,7 @@ type CommentItem = {
   snippet: CommentSnippet;
 };
 
-type TopLevelCommentItem = {
+export type TopLevelCommentItem = {
   kind: "youtube#commentThread";
   etag: string;
   id: string;
@@ -204,7 +204,7 @@ export type CommentListResponse = {
   items: TopLevelCommentItem[];
 };
 
-type VideoWithComments = VideoItem & { comments: CommentSnippet[] };
+export type VideoWithComments = VideoItem & { comments: CommentSnippet[] };
 
 export type FullChannelResult = {
   name: string;
@@ -214,8 +214,6 @@ export type FullChannelResult = {
 };
 
 export type Item = {
-  name: string;
-  handle: string;
   channel: ChannelItem;
   videos: VideoWithComments[];
 };

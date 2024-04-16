@@ -34,7 +34,8 @@ export class YoutubeAPI {
       return response;
     } catch (error) {
       if (retries > 1) {
-        console.log(`Retrying request to ${url}: ${retries - 1} attempts left`);
+        console.log(`Retrying request ${retries - 1} attempts left`);
+        // console.log(`Retrying request to ${url}: ${retries - 1} attempts left`);
         await new Promise((r) => setTimeout(r, delay));
         return this.fetchWithRetry(url, options, retries - 1, delay);
       } else {
@@ -163,7 +164,7 @@ export class YoutubeAPI {
         part: ["id", "snippet", "replies"].join(","),
         videoId,
         maxResults: "100",
-        order: "relevance",
+        order: "time",
         ...(pageToken !== undefined ? { pageToken } : {}),
       });
 
