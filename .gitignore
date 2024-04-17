@@ -38,3 +38,5 @@ next-env.d.ts
 /scripts/json/channels/**/*.json
 /scripts/json/videos/**/*.json
 /scripts/logs/*.log
+/scripts/csv/**/*.csv
+/scripts/csv/**/*.zip

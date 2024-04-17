@@ -23,6 +23,14 @@ export function getThumbnail(thumbnails: VideoItem["snippet"]["thumbnails"]) {
   }
 }
 
+export function isUndefined<T>(value: T | undefined): value is undefined {
+  return value === undefined;
+}
+
+export function isDefined<T>(value: T | undefined): value is T {
+  return value !== undefined;
+}
+
 export async function executeSequentially<T>(promises: (() => Promise<T>)[]) {
   let sequence = Promise.resolve();
   let results: T[] = [];

@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { Channel, PrismaClient } from "@prisma/client";
 import {
   CommentSnippet,
   Item,
@@ -114,5 +114,50 @@ export async function createVideoComments(video: VideoWithComments) {
 
   await prisma.comment.createMany({
     data: comments,
+  });
+}
+
+export async function queryAuthorsInCommon(
+  channelA: Channel,
+  channelB: Channel,
+  publishedAt: { lte: Date; gte: Date }
+) {
+  const resultAB: { count: number }[] = await prisma.$queryRaw`
+    select count(distinct "authorId")
+    from "Comment"
+    where "channelId" = ${
+      channelA.id
+    } and "publishedAt" >= ${publishedAt.gte.toISOString()}::timestamp AND
+          "publishedAt" <= ${publishedAt.lte.toISOString()}::timestamp AND
+          "videoPublishedAt" >= ${publishedAt.gte.toISOString()}::timestamp AND
+          "videoPublishedAt" <= ${publishedAt.lte.toISOString()}::timestamp
+    and "authorId" in (
+      select "authorId"
+      from "Comment"
+      where "channelId" = ${
+        channelB.id
+      } and "publishedAt" >= ${publishedAt.gte.toISOString()}::timestamp AND
+  "publishedAt" <= ${publishedAt.lte.toISOString()}::timestamp AND
+  "videoPublishedAt" >= ${publishedAt.gte.toISOString()}::timestamp AND
+  "videoPublishedAt" <= ${publishedAt.lte.toISOString()}::timestamp
+    );`;
+  return parseInt(resultAB[0].count.toString());
+}
+
+export async function channelsWithComments(publishedAt: {
+  lte: Date;
+  gte: Date;
+}) {
+  return await prisma.channel.findMany({
+    where: {
+      comments: {
+        some: {
+          publishedAt: {
+            gte: publishedAt.gte,
+            lte: publishedAt.lte,
+          },
+        },
+      },
+    },
   });
 }
