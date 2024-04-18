@@ -4,12 +4,8 @@ import { Calendar, Clock, Eye, MessageCircle, ThumbsUp } from "react-feather";
 import { twMerge } from "tailwind-merge";
 import { secondsToString } from "../lib/utils";
 
-export default function VideoCard(props: {
-  channel?: Channel;
-  video: Video;
-  className?: string;
-}) {
-  const { channel, video, className } = props;
+export default function VideoCard(props: { video: Video; className?: string }) {
+  const { video, className } = props;
   const duration = secondsToString(video.duration);
 
   return (
@@ -19,13 +15,7 @@ export default function VideoCard(props: {
         "col-span-4 flex flex-col gap-2 hover:bg-black/5 group rounded overflow-hidden transition-colors",
         className
       )}
-      href={
-        channel
-          ? `/channels/${channel.handle.replace("@", "")}/videos/${
-              video.id
-            }`
-          : `https://youtube.com/watch?v=${video.id}`
-      }
+      href={`https://youtube.com/watch?v=${video.id}`}
       target="_blank"
     >
       <img

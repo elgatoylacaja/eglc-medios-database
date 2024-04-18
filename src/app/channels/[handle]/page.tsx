@@ -1,66 +1,147 @@
-import { Video } from "@prisma/client";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import {
+  ArrowDown,
   ArrowLeft,
+  ArrowRight,
+  ArrowUp,
   Calendar,
+  Clock,
   Eye,
   MessageCircle,
-  ThumbsUp
+  ThumbsUp,
 } from "react-feather";
 import { twMerge } from "tailwind-merge";
 import ChannelCard from "../../../components/ChannelCard";
 import VideoCard from "../../../components/VideoCard";
 import prisma from "../../../lib/prisma";
+import SearchBox from "./SearchBox";
 
-type Props = {
-  params: { handle: string };
-  searchParams: { sortBy: SortKey };
-};
-
-type SortFn = (a: Video, b: Video) => number;
 type SortKey =
   | "uploaded"
   | "views"
   | "likes"
   | "comments"
   | "likes_per_view"
-  | "comments_per_view";
+  | "comments_per_view"
+  | "duration";
 
-const sortFns: Record<SortKey, SortFn> = {
-  uploaded: (a, b) => {
-    return a.publishedAt < b.publishedAt ? 1 : -1;
-  },
-  views: (a, b) => {
-    return parseInt(b.viewCount.toString()) - parseInt(a.viewCount.toString());
-  },
-  likes: (a, b) => {
-    return b.likeCount - a.likeCount;
-  },
-  comments: (a, b) => {
-    return b.commentCount - a.commentCount;
-  },
-  likes_per_view: (a, b) => {
-    return (
-      b.likeCount / parseInt(b.viewCount.toString()) -
-      a.likeCount / parseInt(a.viewCount.toString())
-    );
-  },
-  comments_per_view: (a, b) => {
-    return (
-      b.commentCount / parseInt(b.viewCount.toString()) -
-      a.commentCount / parseInt(a.viewCount.toString())
-    );
-  },
-} as const;
+type Props = {
+  params: { handle: string };
+  searchParams: {
+    sortBy: SortKey;
+    order: "asc" | "desc";
+    page?: string;
+    search?: string;
+  };
+};
+
+const className =
+  "flex justify-center items-center py-1 bg-black/5 w-fit rounded px-2 gap-1 text-xs transition-colors hover:bg-black/20";
+
+const PAGE_SIZE = 48;
+
+async function Videos(
+  props: Required<Props["searchParams"] & Props["params"]> & {
+    channelId: string;
+  }
+) {
+  const { sortBy, order, page, channelId, handle } = props;
+
+  const orderBy = {
+    uploaded: { publishedAt: order },
+    views: { viewCount: order },
+    likes: { likeCount: order },
+    comments: { commentCount: order },
+    likes_per_view: { likeCount: order },
+    comments_per_view: { commentCount: order },
+    duration: { duration: order },
+  } as const;
+
+  const where = {
+    channelId,
+    OR: [
+      { title: { contains: props.search, mode: "insensitive" as const } },
+      // { description: { contains: props.search, mode: "insensitive" as const } },
+    ],
+  };
+
+  const pages = await prisma.video
+    .count({ where })
+    .then((count) => Math.ceil(count / PAGE_SIZE));
+
+  const videos = await prisma.video.findMany({
+    where,
+    take: PAGE_SIZE,
+    skip: (parseInt(page) - 1) * PAGE_SIZE,
+    orderBy: orderBy[sortBy],
+  });
+
+  return (
+    <>
+      <div className="grid grid-cols-12 gap-3">
+        {videos.map((video) => (
+          <VideoCard
+            video={video}
+            key={video.id}
+            className="col-span-12 sm:col-span-6 lg:col-span-3 xl:col-span-2"
+          />
+        ))}
+      </div>
+      {pages > 1 ? (
+        <div className="flex flex-wrap gap-2 justify-center items-center">
+          <Link
+            href={`/channels/${handle}?sortBy=${sortBy}&order=${order}&page=${Math.max(
+              1,
+              parseInt(page) - 1
+            )}`}
+            className={twMerge(
+              className,
+              page === "1"
+                ? "pointer-events-none cursor-not-allowed opacity-40"
+                : ""
+            )}
+          >
+            <ArrowLeft size={12} />
+            <span>Previous</span>
+          </Link>
+          <span className="text-sm">
+            {page}/{pages}
+          </span>
+          <Link
+            href={`/channels/${handle}?sortBy=${sortBy}&order=${order}&page=${Math.min(
+              pages,
+              parseInt(page) + 1
+            )}`}
+            className={twMerge(
+              className,
+              page === pages.toString()
+                ? "pointer-events-none cursor-not-allowed opacity-90"
+                : ""
+            )}
+          >
+            <ArrowRight size={12} />
+            <span>Next</span>
+          </Link>
+        </div>
+      ) : null}
+    </>
+  );
+}
 
 export default async function Page(props: Props) {
+  const { params, searchParams } = props;
+  const { handle } = params;
   const {
-    params: { handle },
-    searchParams: { sortBy = "uploaded" },
-  } = props;
+    sortBy = "uploaded",
+    order = "desc",
+    page = "1",
+    search = "",
+  } = searchParams;
 
-  // const channel = await API.fetchChannelData(`@${handle}`);
+  const oppositeOrder = order === "asc" ? "desc" : "asc";
+
   const channel = await prisma.channel.findFirst({
     where: { handle: `@${handle}` },
   });
@@ -69,34 +150,9 @@ export default async function Page(props: Props) {
     return notFound();
   }
 
-  const orderBy = {
-    uploaded: { publishedAt: "desc" },
-    views: { viewCount: "desc" },
-    likes: { likeCount: "desc" },
-    comments: { commentCount: "desc" },
-    likes_per_view: { likeCount: "desc" },
-    comments_per_view: { commentCount: "desc" },
-  } as const;
-
-  const videos = await prisma.video.findMany({
-    where: { channelId: channel.id },
-    take: 50,
-    orderBy: orderBy[sortBy],
-  });
-
-  const videoCount = await prisma.video.count({
-    where: { channelId: channel.id },
-  });
-
   return (
     <div className="flex flex-col gap-2">
-      <Link
-        href={`/channels`}
-        key="uploaded"
-        className={twMerge(
-          "flex justify-center items-center py-1 bg-black/5 w-fit rounded px-2 gap-1 text-xs transition-color"
-        )}
-      >
+      <Link href={`/channels`} key="uploaded" className={twMerge(className)}>
         <ArrowLeft size={12} />
         <span>Back</span>
       </Link>
@@ -105,10 +161,10 @@ export default async function Page(props: Props) {
 
       <div className="flex flex-wrap gap-2">
         <Link
-          href={`/channels/${handle}?sortBy=uploaded`}
+          href={`/channels/${handle}?sortBy=uploaded&order=${order}&search=${search}`}
           key="uploaded"
           className={twMerge(
-            "flex justify-center items-center py-1 bg-black/5 w-fit rounded px-2 gap-1 text-xs transition-color",
+            className,
             sortBy === "uploaded" ? "bg-black/30" : ""
           )}
         >
@@ -116,10 +172,10 @@ export default async function Page(props: Props) {
           <span>Uploaded</span>
         </Link>
         <Link
-          href={`/channels/${handle}?sortBy=views`}
+          href={`/channels/${handle}?sortBy=views&order=${order}&search=${search}`}
           key="views"
           className={twMerge(
-            "flex justify-center items-center py-1 bg-black/5 w-fit rounded px-2 gap-1 text-xs transition-color",
+            className,
             sortBy === "views" ? "bg-black/30" : ""
           )}
         >
@@ -127,10 +183,10 @@ export default async function Page(props: Props) {
           <span>Views</span>
         </Link>
         <Link
-          href={`/channels/${handle}?sortBy=likes`}
+          href={`/channels/${handle}?sortBy=likes&order=${order}&search=${search}`}
           key="likes"
           className={twMerge(
-            "flex justify-center items-center py-1 bg-black/5 w-fit rounded px-2 gap-1 text-xs transition-color",
+            className,
             sortBy === "likes" ? "bg-black/30" : ""
           )}
         >
@@ -138,22 +194,33 @@ export default async function Page(props: Props) {
           <span>Likes</span>
         </Link>
         <Link
-          href={`/channels/${handle}?sortBy=comments`}
+          href={`/channels/${handle}?sortBy=comments&order=${order}&search=${search}`}
           key="comments"
           className={twMerge(
-            "flex justify-center items-center py-1 bg-black/5 w-fit rounded px-2 gap-1 text-xs transition-color",
+            className,
             sortBy === "comments" ? "bg-black/30" : ""
           )}
         >
           <MessageCircle size={12} />
           <span>Comments</span>
         </Link>
+        <Link
+          href={`/channels/${handle}?sortBy=duration&order=${order}&search=${search}`}
+          key="duration"
+          className={twMerge(
+            className,
+            sortBy === "duration" ? "bg-black/30" : ""
+          )}
+        >
+          <Clock size={12} />
+          <span>Duration</span>
+        </Link>
 
         <Link
-          href={`/channels/${handle}?sortBy=likes_per_view`}
+          href={`/channels/${handle}?sortBy=likes_per_view&order=${order}&search=${search}`}
           key="likes_per_view"
           className={twMerge(
-            "flex justify-center items-center py-1 bg-black/5 w-fit rounded px-2 gap-1 text-xs transition-color",
+            className,
             sortBy === "likes_per_view" ? "bg-black/30" : ""
           )}
         >
@@ -161,10 +228,10 @@ export default async function Page(props: Props) {
           <span>Likes per view</span>
         </Link>
         <Link
-          href={`/channels/${handle}?sortBy=comments_per_view`}
+          href={`/channels/${handle}?sortBy=comments_per_view&order=${order}&search=${search}`}
           key="comments_per_view"
           className={twMerge(
-            "flex justify-center items-center py-1 bg-black/5 w-fit rounded px-2 gap-1 text-xs transition-color",
+            className,
             sortBy === "comments_per_view" ? "bg-black/30" : ""
           )}
         >
@@ -173,16 +240,29 @@ export default async function Page(props: Props) {
         </Link>
       </div>
 
-      <div className="grid grid-cols-12 gap-3">
-        {videos.sort(sortFns[sortBy]).map((video) => (
-          <VideoCard
-            channel={channel}
-            video={video}
-            key={video.id}
-            className="col-span-12 sm:col-span-6 lg:col-span-3 xl:col-span-2"
-          />
-        ))}
+      <div className="flex flex-wrap gap-2">
+        <div className={twMerge(className, "hover:bg-black/5 cursor")}>
+          {order === "asc" ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
+          <span>
+            Ordenado de manera:{" "}
+            {{ asc: "Ascendente", desc: "Descendente" }[order]}
+          </span>
+        </div>
+        <Link
+          href={`/channels/${handle}?sortBy=${sortBy}&order=${oppositeOrder}&search=${search}`}
+          className={twMerge(className)}
+        >
+          Toggle
+        </Link>
+        <SearchBox />
       </div>
+
+      <Suspense fallback={<div>Loading...</div>}>
+        <Videos
+          {...{ handle, sortBy, order, page, search }}
+          channelId={channel.id}
+        />
+      </Suspense>
     </div>
   );
 }

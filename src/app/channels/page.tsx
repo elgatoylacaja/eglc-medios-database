@@ -18,8 +18,14 @@ export default async function Page() {
               className="flex gap-2 justify-start items-center hover:underline hover:text-blue-500"
               key={channel.id}
             >
-              <img className="w-8 h-8 rounded-full" src={channel.thumbnail} />
-              <span>{channel.name}</span> - <span>{channel.handle}</span>
+              <img
+                className="w-8 h-8 rounded-full border border-black"
+                src={channel.thumbnail}
+              />
+              <div className="flex flex-col gap-0.5 leading-none">
+                <span>{channel.name}</span>
+                <span className="text-xs text-gray-500">{channel.handle}</span>
+              </div>
             </Link>
           );
         })}
