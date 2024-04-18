@@ -19,7 +19,7 @@ export default function VideoCard(props: { video: Video; className?: string }) {
       target="_blank"
     >
       <img
-        className="group-hover:scale-105 transition-transform"
+        className="group-hover:scale-105 transition-transform aspect-video"
         src={video.thumbnail}
         alt=""
       />

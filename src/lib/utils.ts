@@ -6,6 +6,7 @@ import {
   TopLevelCommentItem,
   VideoItem,
 } from "./types";
+import { Video as PrismaVideo } from "@prisma/client";
 
 export function getThumbnail(thumbnails: VideoItem["snippet"]["thumbnails"]) {
   const options: ThumbnailKey[] = [
@@ -155,4 +156,27 @@ export function normalizeItem(item: Item): Item {
       return condition;
     }),
   };
+}
+
+export function videosToJson(videos: PrismaVideo[]) {
+  return JSON.stringify(
+    videos.map((i) => ({
+      ...i,
+      viewCount: parseInt(i.viewCount.toString()),
+    })),
+    null,
+    2
+  );
+}
+
+export function videosToTsv(videos: PrismaVideo[]) {
+  const columns = Object.keys(videos[0]).filter(
+    (i) => i !== "description"
+  ) as (keyof PrismaVideo)[];
+  const header = columns.join("\t");
+  const rows = videos.map((video) =>
+    columns.map((column) => video[column].toString())
+  );
+  const body = rows.map((row) => row.join("\t")).join("\n");
+  return `${header}\n${body}`;
 }
