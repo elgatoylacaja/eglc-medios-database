@@ -4,8 +4,6 @@ import { twMerge } from "tailwind-merge";
 import VideoCard from "../../../components/VideoCard";
 import VideoSkeleton from "../../../components/VideoSkeleton";
 import prisma from "../../../lib/prisma";
-import DownloadButton from "./download-button";
-import { videosToJson, videosToTsv } from "../../../lib/utils";
 
 type SortKey =
   | "uploaded"
@@ -64,11 +62,6 @@ export default async function Videos(props: Props & { channelId: string }) {
     orderBy: orderBy[sortBy],
   });
 
-  const full = await prisma.video.findMany({
-    where,
-    orderBy: orderBy[sortBy],
-  });
-
   return (
     <div className="flex flex-col gap-2">
       <div className={twMerge(className, "hover:bg-black/5 cursor")}>
@@ -121,24 +114,32 @@ export default async function Videos(props: Props & { channelId: string }) {
             </Link>
           </>
         ) : null}
-        <DownloadButton
-          className={twMerge(className)}
-          content={videosToJson(full)}
-          filename={`${handle}-${new URLSearchParams(
-            props.searchParams
-          ).toString()}.json`}
-          type="text/json"
-          label="Download JSON"
-        />
-        <DownloadButton
-          className={twMerge(className)}
-          content={videosToTsv(full)}
-          filename={`${handle}-${new URLSearchParams(
-            props.searchParams
-          ).toString()}.tsv`}
-          type="text/plain"
-          label="Download TSV"
-        />
+        {videos.length > 0 ? (
+          <>
+            <Link
+              className={twMerge(className)}
+              href={`/api/channels/${handle}/download?${new URLSearchParams({
+                ...props.searchParams,
+                handle,
+                channelId,
+                type: "json",
+              }).toString()}`}
+            >
+              Download JSON
+            </Link>
+            <Link
+              className={twMerge(className)}
+              href={`/api/channels/${handle}/download?${new URLSearchParams({
+                ...props.searchParams,
+                handle,
+                channelId,
+                type: "tsv",
+              }).toString()}`}
+            >
+              Download TSV
+            </Link>
+          </>
+        ) : null}
       </div>
     </div>
   );
