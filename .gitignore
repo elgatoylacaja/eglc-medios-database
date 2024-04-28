@@ -40,3 +40,6 @@ next-env.d.ts
 /scripts/logs/*.log
 /scripts/csv/**/*.csv
 /scripts/csv/**/*.zip
+/scripts/exports/**/*.csv
+/scripts/exports/**/*.tsv
+/scripts/exports/**/*.zip

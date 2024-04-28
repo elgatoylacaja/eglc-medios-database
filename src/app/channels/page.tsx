@@ -1,6 +1,6 @@
 import Link from "next/link";
+import { handles_to_exclude } from "../../../scripts/0. common";
 import prisma from "../../lib/prisma";
-import ChannelCard from "../../components/ChannelCard";
 
 export default async function Page() {
   const channels = await prisma.channel.findMany();
@@ -9,13 +9,19 @@ export default async function Page() {
     <div className="flex flex-col gap-1.5 flex-wrap max-h-[calc(100dvh-48px)]">
       {channels
         .sort((c1, c2) => {
+          if (handles_to_exclude.includes(c1.handle.toLowerCase())) return 1;
+          if (handles_to_exclude.includes(c2.handle.toLowerCase())) return -1;
           return c1.handle.localeCompare(c2.handle);
         })
         .map((channel) => {
           return (
             <Link
               href={`/channels/${channel.handle.replace("@", "")}`}
-              className="flex gap-2 justify-start items-center hover:underline hover:text-blue-500"
+              className={`flex gap-2 justify-start items-center hover:underline hover:text-blue-500 ${
+                handles_to_exclude.includes(channel.handle.toLowerCase())
+                  ? "bg-red-400/10"
+                  : ""
+              }`}
               key={channel.id}
             >
               <img

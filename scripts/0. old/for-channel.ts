@@ -2,8 +2,9 @@ import { Channel, PrismaClient } from "@prisma/client";
 import { appendFile, readdir, writeFile } from "fs/promises";
 import PQueue from "p-queue";
 import yargs from "yargs";
-import { executeSequentially, isDefined } from "../src/lib/utils";
-import { channelsWithComments, queryAuthorsInCommon } from "./db/utils";
+import { executeSequentially, isDefined } from "../../src/lib/utils";
+import { channelsWithComments, queryAuthorsInCommon } from "../db/utils";
+import { nodes_base_columns } from "../0. common";
 
 // Process command line arguments
 const argv = yargs(process.argv.slice(2)).option("handle", {
@@ -13,18 +14,7 @@ const argv = yargs(process.argv.slice(2)).option("handle", {
 }).argv as { handle: string };
 
 const prisma = new PrismaClient();
-const columns = [
-  "id",
-  "name",
-  "handle",
-  "subscriberCount",
-  "viewCount",
-  "videoCount",
-  "commentCount",
-  "authors",
-  "oldestVideo",
-  "publishedAt",
-] as const;
+const columns = nodes_base_columns;
 
 type Config = {
   publishedAt: { gte: Date; lte: Date };
@@ -80,14 +70,12 @@ async function writeEdges(
   channels: Channel[],
   config: Config
 ) {
-  const queue = new PQueue({ concurrency: 10 });
+  const queue = new PQueue({ concurrency: 1 });
 
   const edgesFileName = `${config.period}-${channel.handle}-edges.tsv`;
   const edgesFileExists = await readdir("./scripts/exports").then((files) =>
     files.includes(edgesFileName)
   );
-
-  console.log(channel);
 
   if (edgesFileExists) {
     console.log(`Edges file already exists, skipping ...`);
@@ -170,7 +158,9 @@ async function writeNode(channel: Channel, config: Config) {
 
   const values = [
     id,
+    id,
     name,
+    handle,
     handle,
     subscriberCount,
     viewCount,

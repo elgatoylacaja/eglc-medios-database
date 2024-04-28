@@ -24,24 +24,37 @@ type Props = {
     order: "asc" | "desc";
     page?: string;
     search?: string;
+    "date-start": string;
+    "date-end": string;
   };
 };
 
 const className =
   "flex justify-center items-center py-1 bg-black/5 w-fit rounded px-2 gap-1 text-xs transition-colors hover:bg-black/20";
 
-export default async function Page({
-  params: { handle },
-  searchParams: {
-    sortBy = "uploaded",
-    order = "desc",
-    page = "1",
-    search = "",
-  },
-}: Props) {
+export default async function Page(initialProps: Props) {
+  const {
+    params: { handle },
+    searchParams: {
+      sortBy = "uploaded",
+      order = "desc",
+      page = "1",
+      search = "",
+      "date-start": dateStart = "2020-01-01T00:00:00.000Z",
+      "date-end": dateEnd = "2024-05-01T00:00:00.000Z",
+    },
+  } = initialProps;
+
   const props = {
     params: { handle },
-    searchParams: { sortBy, order, page, search },
+    searchParams: {
+      sortBy,
+      order,
+      page,
+      search,
+      "date-start": dateStart,
+      "date-end": dateEnd,
+    },
   };
 
   const channel = await prisma.channel.findFirst({
@@ -64,7 +77,14 @@ export default async function Page({
       <Header
         {...{
           params: { handle },
-          searchParams: { sortBy, order, page, search },
+          searchParams: {
+            sortBy,
+            order,
+            page,
+            search,
+            "date-start": dateStart,
+            "date-end": dateEnd,
+          },
         }}
       />
 

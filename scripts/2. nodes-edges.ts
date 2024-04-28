@@ -1,38 +1,21 @@
 import { Channel, PrismaClient } from "@prisma/client";
 import { appendFile, readdir, writeFile } from "fs/promises";
 import PQueue from "p-queue";
-import {
-  executeSequentially,
-  isDefined
-} from "../src/lib/utils";
+import { executeSequentially, isDefined } from "../src/lib/utils";
 import { channelsWithComments, queryAuthorsInCommon } from "./db/utils";
+import { handles_to_exclude, nodes_base_columns, ranges } from "./0. common";
 
 const prisma = new PrismaClient();
 
-const Config = {
-  publishedAt: {
-    lte: new Date(`2024-01-01T00:00:00.000Z`),
-    gte: new Date(`2023-01-01T00:00:00.000Z`),
-  },
-  period: "2023",
-  columns: [
-    "id",
-    "name",
-    "handle",
-    "subscriberCount",
-    "viewCount",
-    "videoCount",
-    "commentCount",
-    "authors",
-    "oldestVideo",
-    "publishedAt",
-  ] as const,
+type Config = {
+  publishedAt: { lte: Date; gte: Date };
+  period: string;
 };
 
-async function writeEdges(channels: Channel[]) {
+async function writeEdges(channels: Channel[], config: Config) {
   const queue = new PQueue({ concurrency: 10 });
 
-  const edgesFileName = `${Config.period}-edges.tsv`;
+  const edgesFileName = `${config.period}-edges.tsv`;
   const edgesFileExists = await readdir("./scripts/exports").then((files) =>
     files.includes(edgesFileName)
   );
@@ -44,7 +27,7 @@ async function writeEdges(channels: Channel[]) {
 
   await writeFile(
     `./scripts/exports/${edgesFileName}`,
-    "source\ttarget\tweight\n"
+    "Source\tTarget\tweight\n"
   );
 
   const tuples = channels.flatMap((channelA) =>
@@ -63,7 +46,7 @@ async function writeEdges(channels: Channel[]) {
       const authorsInCommon = await queryAuthorsInCommon(
         channelA,
         channelB,
-        Config.publishedAt
+        config.publishedAt
       );
       if (authorsInCommon > 0) {
         console.log(
@@ -79,8 +62,8 @@ async function writeEdges(channels: Channel[]) {
   }
 }
 
-async function writeNodes(channels: Channel[]) {
-  const fileName = `${Config.period}-nodes.tsv`;
+async function writeNodes(channels: Channel[], config: Config) {
+  const fileName = `${config.period}-nodes.tsv`;
   const fileExists = await readdir("./scripts/exports").then((files) =>
     files.includes(fileName)
   );
@@ -92,13 +75,13 @@ async function writeNodes(channels: Channel[]) {
 
   await writeFile(
     `./scripts/exports/${fileName}`,
-    Config.columns.join("\t") + "\n"
+    nodes_base_columns.join("\t") + "\n"
   );
 
   await executeSequentially(
     channels.map((channel) => async () => {
       const { id, name, handle, subscriberCount, publishedAt } = channel;
-      const where = { channelId: id, publishedAt: Config.publishedAt };
+      const where = { channelId: id, publishedAt: config.publishedAt };
 
       console.log(`Processing ${handle} ...`);
 
@@ -108,26 +91,32 @@ async function writeNodes(channels: Channel[]) {
           prisma.video
             .aggregate({ where, _sum: { viewCount: true } })
             .then((res) => parseInt((res._sum.viewCount || 0).toString())),
-          prisma.comment.count({ where }),
+          prisma.comment.count({
+            where: {
+              channelId: id,
+              publishedAt: where.publishedAt,
+              videoPublishedAt: where.publishedAt,
+            },
+          }),
           prisma.video.findFirst({ where, orderBy: { publishedAt: "asc" } }),
-          prisma.$queryRaw`
-          SELECT COUNT(DISTINCT "authorId")
-          FROM "Comment"
-          WHERE
-            "channelId" = ${channel.id} AND
-            "publishedAt" >= ${where.publishedAt.gte.toISOString()}::timestamp AND
-            "publishedAt" <= ${where.publishedAt.lte.toISOString()}::timestamp AND
-            "videoPublishedAt" >= ${where.publishedAt.gte.toISOString()}::timestamp AND
-            "videoPublishedAt" <= ${where.publishedAt.lte.toISOString()}::timestamp;`.then(
-            (res) => {
-              return parseInt((res as { count: number }[])[0].count.toString());
-            }
-          ),
+          prisma.author.count({
+            where: {
+              Comment: {
+                some: {
+                  channelId: id,
+                  publishedAt: where.publishedAt,
+                  videoPublishedAt: where.publishedAt,
+                },
+              },
+            },
+          }),
         ]);
 
       const values = [
         id,
+        id,
         name,
+        handle,
         handle,
         subscriberCount,
         viewCount,
@@ -146,12 +135,39 @@ async function writeNodes(channels: Channel[]) {
   );
 }
 
-async function main() {
-  const channels = await channelsWithComments(Config.publishedAt);
-  console.log(`Channels with comments: ${channels.length}`);
+async function runForPeriod(
+  period: string,
+  publishedAt: { lte: Date; gte: Date }
+) {
+  console.log(`Processing period: ${period}`);
+  const channelsRaw = await channelsWithComments(publishedAt);
+  console.log(`Channels with comments: ${channelsRaw.length}`);
 
-  await writeNodes(channels);
-  await writeEdges(channels);
+  const channels = channelsRaw.filter(
+    (channel) => !handles_to_exclude.includes(channel.handle.toLowerCase())
+  );
+  console.log(`Channels to process: ${channels.length}`);
+
+  await writeNodes(channels, { period, publishedAt });
+  await writeEdges(channels, { period, publishedAt });
+}
+
+async function main() {
+  const queue = new PQueue({ concurrency: 1 });
+
+  const periods = Object.entries(ranges).map(([period, [gte, lte]]) => ({
+    period,
+    publishedAt: { gte, lte },
+  }));
+
+  for (const { period, publishedAt } of periods) {
+    queue.add(async () => {
+      await runForPeriod(period, publishedAt);
+    });
+  }
+
+  await queue.onIdle();
+  console.log("All tasks have been processed");
 }
 
 main()

@@ -71,20 +71,30 @@ export async function createChannel(item: Item) {
     },
   } = item;
 
+  const data = {
+    name,
+    handle,
+    description,
+    publishedAt,
+    thumbnail: getThumbnail(thumbnails) || "",
+    banner: image?.bannerExternalUrl || "",
+    videoCount: parseInt(videoCount) || 0,
+    subscriberCount: parseInt(subscriberCount) || 0,
+    viewCount: parseInt(viewCount) || 0,
+  };
+
   console.log(`Creating channel with id: ${channelId}`);
   await prisma.channel
-    .create({
-      data: {
+    .upsert({
+      create: {
         id: channelId,
-        name,
-        handle,
-        description,
-        publishedAt,
-        thumbnail: getThumbnail(thumbnails) || "",
-        banner: image?.bannerExternalUrl || "",
-        videoCount: parseInt(videoCount) || 0,
-        subscriberCount: parseInt(subscriberCount) || 0,
-        viewCount: parseInt(viewCount) || 0,
+        ...data,
+      },
+      where: {
+        id: channelId,
+      },
+      update: {
+        ...data,
       },
     })
     .then(() => console.log(`Channel with id: ${channelId} created.`));
@@ -122,26 +132,65 @@ export async function queryAuthorsInCommon(
   channelB: Channel,
   publishedAt: { lte: Date; gte: Date }
 ) {
-  const resultAB: { count: number }[] = await prisma.$queryRaw`
-    select count(distinct "authorId")
-    from "Comment"
-    where "channelId" = ${
-      channelA.id
-    } and "publishedAt" >= ${publishedAt.gte.toISOString()}::timestamp AND
-          "publishedAt" <= ${publishedAt.lte.toISOString()}::timestamp AND
-          "videoPublishedAt" >= ${publishedAt.gte.toISOString()}::timestamp AND
-          "videoPublishedAt" <= ${publishedAt.lte.toISOString()}::timestamp
-    and "authorId" in (
-      select "authorId"
-      from "Comment"
-      where "channelId" = ${
-        channelB.id
-      } and "publishedAt" >= ${publishedAt.gte.toISOString()}::timestamp AND
-  "publishedAt" <= ${publishedAt.lte.toISOString()}::timestamp AND
-  "videoPublishedAt" >= ${publishedAt.gte.toISOString()}::timestamp AND
-  "videoPublishedAt" <= ${publishedAt.lte.toISOString()}::timestamp
-    );`;
-  return parseInt(resultAB[0].count.toString());
+  const result = await prisma.author.count({
+    where: {
+      AND: [
+        {
+          Comment: {
+            some: {
+              channelId: channelA.id,
+              publishedAt: {
+                gte: publishedAt.gte,
+                lte: publishedAt.lte,
+              },
+              videoPublishedAt: {
+                gte: publishedAt.gte,
+                lte: publishedAt.lte,
+              },
+            },
+          },
+        },
+        {
+          Comment: {
+            some: {
+              channelId: channelB.id,
+              publishedAt: {
+                gte: publishedAt.gte,
+                lte: publishedAt.lte,
+              },
+              videoPublishedAt: {
+                gte: publishedAt.gte,
+                lte: publishedAt.lte,
+              },
+            },
+          },
+        },
+      ],
+    },
+  });
+
+  return result;
+
+  // const resultAB: { count: number }[] = await prisma.$queryRaw`
+  //   select count(distinct "authorId")
+  //   from "Comment"
+  //   where "channelId" = ${
+  //     channelA.id
+  //   } and "publishedAt" >= ${publishedAt.gte.toISOString()}::timestamp AND
+  //         "publishedAt" <= ${publishedAt.lte.toISOString()}::timestamp AND
+  //         "videoPublishedAt" >= ${publishedAt.gte.toISOString()}::timestamp AND
+  //         "videoPublishedAt" <= ${publishedAt.lte.toISOString()}::timestamp
+  //   and "authorId" in (
+  //     select "authorId"
+  //     from "Comment"
+  //     where "channelId" = ${
+  //       channelB.id
+  //     } and "publishedAt" >= ${publishedAt.gte.toISOString()}::timestamp AND
+  // "publishedAt" <= ${publishedAt.lte.toISOString()}::timestamp AND
+  // "videoPublishedAt" >= ${publishedAt.gte.toISOString()}::timestamp AND
+  // "videoPublishedAt" <= ${publishedAt.lte.toISOString()}::timestamp
+  //   );`;
+  // return parseInt(resultAB[0].count.toString());
 }
 
 export async function channelsWithComments(publishedAt: {
@@ -153,6 +202,10 @@ export async function channelsWithComments(publishedAt: {
       comments: {
         some: {
           publishedAt: {
+            gte: publishedAt.gte,
+            lte: publishedAt.lte,
+          },
+          videoPublishedAt: {
             gte: publishedAt.gte,
             lte: publishedAt.lte,
           },

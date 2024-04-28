@@ -10,6 +10,7 @@ import {
 } from "react-feather";
 import { twMerge } from "tailwind-merge";
 import SearchBox from "./search-box";
+import DateRange from "./date-range";
 
 type SortKey =
   | "uploaded"
@@ -27,6 +28,8 @@ type Props = {
     order: "asc" | "desc";
     page?: string;
     search?: string;
+    "date-start": string;
+    "date-end": string;
   };
 };
 
@@ -36,7 +39,13 @@ const className =
 export default async function Header(props: Props) {
   const { params, searchParams } = props;
   const { handle } = params;
-  const { sortBy = "uploaded", order = "desc", search = "" } = searchParams;
+  const {
+    sortBy = "uploaded",
+    order = "desc",
+    search = "",
+    "date-start": dateStart = "2020-01-01T00:00:00.000Z",
+    "date-end": dateEnd = "2024-05-01T00:00:00.000Z",
+  } = searchParams;
 
   const oppositeOrder = order === "asc" ? "desc" : "asc";
 
@@ -44,7 +53,7 @@ export default async function Header(props: Props) {
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap gap-2">
         <Link
-          href={`/channels/${handle}?sortBy=uploaded&order=${order}&search=${search}`}
+          href={`/channels/${handle}?sortBy=uploaded&order=${order}&search=${search}&date-start=${dateStart}&date-end=${dateEnd}`}
           key="uploaded"
           className={twMerge(
             className,
@@ -55,7 +64,7 @@ export default async function Header(props: Props) {
           <span>Uploaded</span>
         </Link>
         <Link
-          href={`/channels/${handle}?sortBy=views&order=${order}&search=${search}`}
+          href={`/channels/${handle}?sortBy=views&order=${order}&search=${search}&date-start=${dateStart}&date-end=${dateEnd}`}
           key="views"
           className={twMerge(
             className,
@@ -66,7 +75,7 @@ export default async function Header(props: Props) {
           <span>Views</span>
         </Link>
         <Link
-          href={`/channels/${handle}?sortBy=likes&order=${order}&search=${search}`}
+          href={`/channels/${handle}?sortBy=likes&order=${order}&search=${search}&date-start=${dateStart}&date-end=${dateEnd}`}
           key="likes"
           className={twMerge(
             className,
@@ -77,7 +86,7 @@ export default async function Header(props: Props) {
           <span>Likes</span>
         </Link>
         <Link
-          href={`/channels/${handle}?sortBy=comments&order=${order}&search=${search}`}
+          href={`/channels/${handle}?sortBy=comments&order=${order}&search=${search}&date-start=${dateStart}&date-end=${dateEnd}`}
           key="comments"
           className={twMerge(
             className,
@@ -88,7 +97,7 @@ export default async function Header(props: Props) {
           <span>Comments</span>
         </Link>
         <Link
-          href={`/channels/${handle}?sortBy=duration&order=${order}&search=${search}`}
+          href={`/channels/${handle}?sortBy=duration&order=${order}&search=${search}&date-start=${dateStart}&date-end=${dateEnd}`}
           key="duration"
           className={twMerge(
             className,
@@ -97,29 +106,6 @@ export default async function Header(props: Props) {
         >
           <Clock size={12} />
           <span>Duration</span>
-        </Link>
-
-        <Link
-          href={`/channels/${handle}?sortBy=likes_per_view&order=${order}&search=${search}`}
-          key="likes_per_view"
-          className={twMerge(
-            className,
-            sortBy === "likes_per_view" ? "bg-black/30" : ""
-          )}
-        >
-          <ThumbsUp size={12} /> / <Eye size={12} />
-          <span>Likes per view</span>
-        </Link>
-        <Link
-          href={`/channels/${handle}?sortBy=comments_per_view&order=${order}&search=${search}`}
-          key="comments_per_view"
-          className={twMerge(
-            className,
-            sortBy === "comments_per_view" ? "bg-black/30" : ""
-          )}
-        >
-          <MessageCircle size={12} /> / <Eye size={12} />
-          <span>Comments per view</span>
         </Link>
       </div>
       <div className="flex flex-wrap gap-2">
@@ -131,12 +117,15 @@ export default async function Header(props: Props) {
           </span>
         </div>
         <Link
-          href={`/channels/${handle}?sortBy=${sortBy}&order=${oppositeOrder}&search=${search}`}
+          href={`/channels/${handle}?sortBy=${sortBy}&order=${oppositeOrder}&search=${search}&date-start=${dateStart}&date-end=${dateEnd}`}
           className={twMerge(className)}
         >
           Toggle
         </Link>
         <SearchBox />
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <DateRange />
       </div>
     </div>
   );

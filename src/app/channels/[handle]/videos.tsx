@@ -21,6 +21,8 @@ type Props = {
     order: "asc" | "desc";
     page?: string;
     search?: string;
+    "date-start"?: string;
+    "date-end"?: string;
   };
 };
 
@@ -33,7 +35,14 @@ export default async function Videos(props: Props & { channelId: string }) {
   const {
     params: { handle },
     channelId,
-    searchParams: { sortBy, order, page = "1", search = "" },
+    searchParams: {
+      sortBy,
+      order,
+      page = "1",
+      search = "",
+      "date-start": dateStart = "2020-01-01T00:00:00.000Z",
+      "date-end": dateEnd = "2024-05-01T00:00:00.000Z",
+    },
   } = props;
 
   const orderBy = {
@@ -49,6 +58,10 @@ export default async function Videos(props: Props & { channelId: string }) {
   const where = {
     channelId,
     title: { contains: search, mode: "insensitive" as const },
+    publishedAt: {
+      gte: new Date(dateStart),
+      lte: new Date(dateEnd),
+    },
   };
 
   const videoCount = await prisma.video.count({ where });
