@@ -4,26 +4,11 @@ import { twMerge } from "tailwind-merge";
 import VideoCard from "../../../components/VideoCard";
 import VideoSkeleton from "../../../components/VideoSkeleton";
 import prisma from "../../../lib/prisma";
-
-type SortKey =
-  | "uploaded"
-  | "views"
-  | "likes"
-  | "comments"
-  | "likes_per_view"
-  | "comments_per_view"
-  | "duration";
+import { VideosSearchParams } from "./page";
 
 type Props = {
   params: { handle: string };
-  searchParams: {
-    sortBy: SortKey;
-    order: "asc" | "desc";
-    page?: string;
-    search?: string;
-    "date-start"?: string;
-    "date-end"?: string;
-  };
+  searchParams: Required<VideosSearchParams>;
 };
 
 const className =
@@ -31,19 +16,32 @@ const className =
 
 const PAGE_SIZE = 48;
 
+const createParams = (params: VideosSearchParams) => {
+  const searchParams = new URLSearchParams();
+  for (const key in params) {
+    const value = params[key as keyof VideosSearchParams];
+    if (value !== undefined) {
+      searchParams.set(key, value);
+    }
+  }
+  return searchParams.toString();
+};
+
 export default async function Videos(props: Props & { channelId: string }) {
   const {
     params: { handle },
     channelId,
-    searchParams: {
-      sortBy,
-      order,
-      page = "1",
-      search = "",
-      "date-start": dateStart = "2020-01-01T00:00:00.000Z",
-      "date-end": dateEnd = "2024-05-01T00:00:00.000Z",
-    },
+    searchParams,
   } = props;
+
+  const {
+    sortBy,
+    order,
+    page,
+    search,
+    "date-start": dateStart,
+    "date-end": dateEnd,
+  } = searchParams;
 
   const orderBy = {
     uploaded: { publishedAt: order },
@@ -75,6 +73,9 @@ export default async function Videos(props: Props & { channelId: string }) {
     orderBy: orderBy[sortBy],
   });
 
+  const hasPrev = parseInt(page) > 1;
+  const hasNext = pages > parseInt(page);
+
   return (
     <div className="flex flex-col gap-2">
       <div className={twMerge(className, "hover:bg-black/5 cursor")}>
@@ -93,16 +94,11 @@ export default async function Videos(props: Props & { channelId: string }) {
         {pages > 1 ? (
           <>
             <Link
-              href={`/channels/${handle}?sortBy=${sortBy}&order=${order}&page=${Math.max(
-                1,
-                parseInt(page) - 1
-              )}&search=${search}`}
-              className={twMerge(
-                className,
-                page === "1"
-                  ? "pointer-events-none cursor-not-allowed opacity-40"
-                  : ""
-              )}
+              href={`/channels/${handle}?${createParams({
+                ...searchParams,
+                page: Math.max(1, parseInt(page) - 1).toString(),
+              })}`}
+              className={twMerge("link-button", !hasPrev ? "disabled" : "")}
             >
               <ArrowLeft size={12} />
               <span>Previous</span>
@@ -111,16 +107,11 @@ export default async function Videos(props: Props & { channelId: string }) {
               {page}/{pages}
             </span>
             <Link
-              href={`/channels/${handle}?sortBy=${sortBy}&order=${order}&page=${Math.min(
-                pages,
-                parseInt(page) + 1
-              )}&search=${search}`}
-              className={twMerge(
-                className,
-                page === pages.toString()
-                  ? "pointer-events-none cursor-not-allowed opacity-90"
-                  : ""
-              )}
+              href={`/channels/${handle}?${createParams({
+                ...searchParams,
+                page: Math.min(pages, parseInt(page) + 1).toString(),
+              })}`}
+              className={twMerge("link-button", !hasNext ? "disabled" : "")}
             >
               <ArrowRight size={12} />
               <span>Next</span>
@@ -130,7 +121,7 @@ export default async function Videos(props: Props & { channelId: string }) {
         {videos.length > 0 ? (
           <>
             <Link
-              className={twMerge(className)}
+              className={"link-button"}
               href={`/api/channels/${handle}/download?${new URLSearchParams({
                 ...props.searchParams,
                 handle,
@@ -141,7 +132,7 @@ export default async function Videos(props: Props & { channelId: string }) {
               Download JSON
             </Link>
             <Link
-              className={twMerge(className)}
+              className={"link-button"}
               href={`/api/channels/${handle}/download?${new URLSearchParams({
                 ...props.searchParams,
                 handle,

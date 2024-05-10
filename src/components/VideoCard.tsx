@@ -25,7 +25,9 @@ export default function VideoCard(props: { video: Video; className?: string }) {
       />
       <div className="flex flex-col gap-1 p-1">
         <div className="text-sm">{video.title}</div>
-        <p className="text-xs line-clamp-3 hover:line-clamp-none">{video.description}</p>
+        <p className="text-xs line-clamp-3 hover:line-clamp-none">
+          {video.description}
+        </p>
         <div className="flex flex-wrap gap-1">
           <div className="flex justify-center items-center py-1 bg-black/5 w-fit rounded px-2 gap-1 text-xs">
             <Calendar size={12} />
@@ -61,27 +63,6 @@ export default function VideoCard(props: { video: Video; className?: string }) {
               Views: {video.viewCount.toLocaleString().replace(",", ".")}
             </span>
           </div>
-
-          <div className="flex justify-center items-center py-1 bg-black/5 w-fit rounded px-2 gap-1 text-xs">
-            <MessageCircle size={12} /> / <Eye size={12} />
-            <span>
-              Comments per view:{" "}
-              {(
-                video.commentCount / parseInt(video.viewCount.toString())
-              ).toFixed(6)}
-            </span>
-          </div>
-          {video.likeCount ? (
-            <div className="flex justify-center items-center py-1 bg-black/5 w-fit rounded px-2 gap-1 text-xs">
-              <ThumbsUp size={12} /> / <Eye size={12} />
-              <span>
-                Likes per view:{" "}
-                {(
-                  video.likeCount / parseInt(video.viewCount.toString())
-                ).toFixed(6)}
-              </span>
-            </div>
-          ) : null}
         </div>
       </div>
     </Link>

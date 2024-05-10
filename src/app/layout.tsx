@@ -23,7 +23,7 @@ export default async function RootLayout({
     <html lang="en">
       <body>
         <main
-          className={`p-6 ${montserrat.variable} ${overpass_mono.variable} font-sans`}
+          className={`${montserrat.variable} ${overpass_mono.variable} font-sans`}
         >
           {children}
         </main>

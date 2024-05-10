@@ -6,7 +6,7 @@ export default async function Page() {
   const channels = await prisma.channel.findMany();
 
   return (
-    <div className="flex flex-col gap-1.5 flex-wrap max-h-[calc(100dvh-48px)]">
+    <div className="flex flex-col gap-1.5 flex-wrap max-h-dvh p-6">
       {channels
         .sort((c1, c2) => {
           if (handles_to_exclude.includes(c1.handle.toLowerCase())) return 1;

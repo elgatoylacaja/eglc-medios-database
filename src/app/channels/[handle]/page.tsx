@@ -8,7 +8,7 @@ import prisma from "../../../lib/prisma";
 import Header from "./header";
 import Videos, { VideosSkeleton } from "./videos";
 
-type SortKey =
+export type SortKey =
   | "uploaded"
   | "views"
   | "likes"
@@ -17,16 +17,18 @@ type SortKey =
   | "comments_per_view"
   | "duration";
 
+export type VideosSearchParams = {
+  sortBy: SortKey;
+  order: "asc" | "desc";
+  page?: string;
+  search?: string;
+  "date-start": string;
+  "date-end": string;
+};
+
 type Props = {
   params: { handle: string };
-  searchParams: {
-    sortBy: SortKey;
-    order: "asc" | "desc";
-    page?: string;
-    search?: string;
-    "date-start": string;
-    "date-end": string;
-  };
+  searchParams: VideosSearchParams;
 };
 
 const className =
@@ -66,8 +68,8 @@ export default async function Page(initialProps: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      <Link href={`/channels`} key="uploaded" className={twMerge(className)}>
+    <div className="flex flex-col gap-2 p-6">
+      <Link href={`/channels`} className={"link-button"}>
         <ArrowLeft size={12} />
         <span>Back</span>
       </Link>

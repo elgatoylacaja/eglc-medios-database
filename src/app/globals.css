@@ -1,3 +1,13 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer components {
+  .link-button {
+    @apply flex justify-center items-center py-1 bg-black/5 w-fit rounded px-2 gap-1 text-xs transition-colors hover:bg-black/20;
+  }
+
+  .link-button.disabled {
+    @apply pointer-events-none cursor-not-allowed opacity-40;
+  }
+}

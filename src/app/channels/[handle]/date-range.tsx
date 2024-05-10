@@ -5,14 +5,19 @@ import { useCallback, useTransition } from "react";
 import { X } from "react-feather";
 import { twMerge } from "tailwind-merge";
 
+const timeRange = {
+  min: "2020-01-01T00:00:00Z",
+  max: "2025-01-01T00:00:00Z",
+};
+
 export default function DateRange() {
   const [dateStart, setDateStart] = useQueryState(
     "date-start",
-    parseAsIsoDateTime.withDefault(new Date("2020-01-01T00:00:00Z"))
+    parseAsIsoDateTime.withDefault(new Date(timeRange.min))
   );
   const [dateEnd, setDateEnd] = useQueryState(
     "date-end",
-    parseAsIsoDateTime.withDefault(new Date("2025-01-01T00:00:00Z"))
+    parseAsIsoDateTime.withDefault(new Date(timeRange.max))
   );
 
   const router = useRouter();
@@ -25,8 +30,10 @@ export default function DateRange() {
     const searchParams = new URLSearchParams(params);
     searchParams.set("date-start", dateStart.toISOString());
     searchParams.set("date-end", dateEnd.toISOString());
+    searchParams.delete("page");
+
     const nextRoute = `${pathname}?${searchParams.toString()}`;
-    console.log(nextRoute);
+
     startTransition(() => {
       router.push(nextRoute);
     });
@@ -45,8 +52,8 @@ export default function DateRange() {
           className="w-24"
           name="start"
           id="start"
-          min={"2020-01-01"}
-          max={"2025-01-01"}
+          min={timeRange.min}
+          max={dateEnd.toISOString().split("T")[0]}
           value={dateStart.toISOString().split("T")[0]}
           onChange={(e) => {
             const date = e.target.valueAsDate;
@@ -61,12 +68,11 @@ export default function DateRange() {
           className="w-24"
           name="end"
           id="end"
-          min={"2020-01-01"}
-          max={"2025-01-01"}
+          min={dateStart.toISOString().split("T")[0]}
+          max={timeRange.max}
           value={dateEnd.toISOString().split("T")[0]}
           onChange={(e) => {
             const date = e.target.valueAsDate;
-            console.log(date);
             if (date !== null) {
               setDateEnd(date);
             }
@@ -75,8 +81,8 @@ export default function DateRange() {
         <button
           disabled={isPending}
           onClick={() => {
-            setDateStart(new Date("2020-01-01T00:00:00Z"));
-            setDateEnd(new Date("2025-01-01T00:00:00Z"));
+            setDateStart(new Date(timeRange.min));
+            setDateEnd(new Date(timeRange.max));
           }}
         >
           <X size={16} />
