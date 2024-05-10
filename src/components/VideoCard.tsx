@@ -1,4 +1,4 @@
-import { Channel, Video } from "@prisma/client";
+import { Video } from "@prisma/client";
 import Link from "next/link";
 import { Calendar, Clock, Eye, MessageCircle, ThumbsUp } from "react-feather";
 import { twMerge } from "tailwind-merge";
@@ -25,7 +25,7 @@ export default function VideoCard(props: { video: Video; className?: string }) {
       />
       <div className="flex flex-col gap-1 p-1">
         <div className="text-sm">{video.title}</div>
-        <p className="text-xs line-clamp-3">{video.description}</p>
+        <p className="text-xs line-clamp-3 hover:line-clamp-none">{video.description}</p>
         <div className="flex flex-wrap gap-1">
           <div className="flex justify-center items-center py-1 bg-black/5 w-fit rounded px-2 gap-1 text-xs">
             <Calendar size={12} />
