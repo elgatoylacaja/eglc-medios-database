@@ -41,7 +41,7 @@ export default async function Page(initialProps: Props) {
       page = "1",
       search = "",
       "date-start": dateStart = "2020-01-01T00:00:00.000Z",
-      "date-end": dateEnd = "2024-05-01T00:00:00.000Z",
+      "date-end": dateEnd = "2025-01-01T00:00:00.000Z",
     },
   } = initialProps;
 

@@ -12,7 +12,7 @@ export default function DateRange() {
   );
   const [dateEnd, setDateEnd] = useQueryState(
     "date-end",
-    parseAsIsoDateTime.withDefault(new Date("2024-05-01T00:00:00Z"))
+    parseAsIsoDateTime.withDefault(new Date("2025-01-01T00:00:00Z"))
   );
 
   const router = useRouter();
@@ -46,7 +46,7 @@ export default function DateRange() {
           name="start"
           id="start"
           min={"2020-01-01"}
-          max={"2024-04-01"}
+          max={"2025-01-01"}
           value={dateStart.toISOString().split("T")[0]}
           onChange={(e) => {
             const date = e.target.valueAsDate;
@@ -62,7 +62,7 @@ export default function DateRange() {
           name="end"
           id="end"
           min={"2020-01-01"}
-          max={"2024-04-01"}
+          max={"2025-01-01"}
           value={dateEnd.toISOString().split("T")[0]}
           onChange={(e) => {
             const date = e.target.valueAsDate;
@@ -76,7 +76,7 @@ export default function DateRange() {
           disabled={isPending}
           onClick={() => {
             setDateStart(new Date("2020-01-01T00:00:00Z"));
-            setDateEnd(new Date("2024-04-01T00:00:00Z"));
+            setDateEnd(new Date("2025-01-01T00:00:00Z"));
           }}
         >
           <X size={16} />
