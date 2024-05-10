@@ -1,7 +1,6 @@
 import { Montserrat, Overpass_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
-import { Suspense } from "react";
 
 const montserrat = Montserrat({
   variable: "--font-montserrat",
