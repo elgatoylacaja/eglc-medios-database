@@ -1,97 +1,77 @@
+import PQueue from "p-queue";
 import prisma from "../../src/lib/prisma";
 import { handles_to_exclude, ranges } from "../0. common";
 
-const publishedAt = {
-  gte: new Date("2020-01-01T00:00:00.000Z"),
-  lte: new Date("2024-05-01T00:00:00.000Z"),
-} as const;
+async function getStats(range: [Date, Date]) {
+  const [gte, lte] = range;
+  const publishedAt = { gte, lte } as const;
 
-async function getStats() {
-  const videos = await prisma.video.count({
-    where: {
-      channel: {
-        handle: {
-          notIn: handles_to_exclude,
-        },
-      },
-      publishedAt,
-    },
-  });
-
-  const comments = await prisma.comment.count({
-    where: {
-      channel: {
-        handle: {
-          notIn: handles_to_exclude,
-        },
-      },
-      // publishedAt,
-      // videoPublishedAt: publishedAt,
-      OR: Object.entries(ranges).map(([year, [gte, lte]]) => ({
-        publishedAt: { gte, lte },
-        videoPublishedAt: { gte, lte },
-      })),
-    },
-  });
-
-  const authors = await prisma.author.count({
-    where: {
-      Comment: {
-        some: {
-          channel: {
-            handle: {
-              notIn: handles_to_exclude,
-            },
-          },
-          // publishedAt,
-          // videoPublishedAt: publishedAt,
-          OR: Object.entries(ranges).map(([year, [gte, lte]]) => ({
-            publishedAt: { gte, lte },
-            videoPublishedAt: { gte, lte },
-          })),
-        },
-      },
-    },
-  });
-
-  const viewCount = await prisma.video.aggregate({
-    _sum: {
-      viewCount: true,
-    },
-    where: {
-      channel: {
-        handle: {
-          notIn: handles_to_exclude,
-        },
-      },
-      publishedAt,
-    },
-  });
-
-  const channels = await prisma.channel.count({
-    where: {
+  const where = {
+    channel: {
       handle: {
         notIn: handles_to_exclude,
       },
-      videos: {
-        some: {
-          publishedAt,
-        },
-      },
-      comments: {
-        some: {
-          publishedAt,
-          videoPublishedAt: publishedAt,
-        },
-      },
     },
-  });
+    publishedAt,
+  } as const;
 
-  console.log(`Channels\t${channels}`);
-  console.log(`Views\t${viewCount._sum.viewCount}`);
-  console.log(`Videos\t${videos}`);
-  console.log(`Comments\t${comments}`);
-  console.log(`Authors\t${authors}`);
+  const [videos, comments, authors, viewCount, channels] = await Promise.all([
+    prisma.video.count({ where }),
+    prisma.comment.count({
+      where: { ...where, videoPublishedAt: publishedAt },
+    }),
+    prisma.author.count({
+      where: {
+        Comment: {
+          some: { ...where, videoPublishedAt: publishedAt },
+        },
+      },
+    }),
+    prisma.video
+      .aggregate({
+        _sum: { viewCount: true },
+        where,
+      })
+      .then((res) => parseInt(res._sum.viewCount?.toString() || "0")),
+    prisma.channel.count({
+      where: {
+        handle: {
+          notIn: handles_to_exclude,
+        },
+        videos: {
+          some: {
+            publishedAt,
+          },
+        },
+        comments: {
+          some: {
+            publishedAt,
+            videoPublishedAt: publishedAt,
+          },
+        },
+      },
+    }),
+  ]);
+
+  const columns = ["Channels (C)", "Views", "Videos", "Comment", "Authors"];
+
+  const data = [channels, viewCount, videos, comments, authors];
+
+  console.log(columns.join("\t"));
+  console.log(data.join("\t"));
 }
 
-getStats();
+async function main() {
+  const queue = new PQueue({ concurrency: 1 });
+
+  for (const [year, range] of Object.entries(ranges)) {
+    queue.add(async () => {
+      console.log(`Processing year: ${year}`);
+      await getStats(range);
+    });
+  }
+
+  await queue.onIdle();
+}
+
+main();

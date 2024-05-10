@@ -13,10 +13,14 @@ type Node = Record<(typeof nodes_base_columns)[number], string>;
 type Edge = Record<"weight", number>;
 
 async function loadGraph(PERIOD: string) {
+  console.log(`Loading graph for ${PERIOD} ...`);
   const graph = new Graph<Node, Edge>();
 
   // Load nodes
-  const nodes = await readFile(`./scripts/v1.1/${PERIOD}-nodes.tsv`, "utf-8");
+  const nodes = await readFile(
+    `./scripts/exports/${PERIOD}-nodes.tsv`,
+    "utf-8"
+  );
 
   nodes
     .split("\n")
@@ -32,7 +36,10 @@ async function loadGraph(PERIOD: string) {
     });
 
   // Load edges
-  const edges = await readFile(`./scripts/v1.1/${PERIOD}-edges.tsv`, "utf-8");
+  const edges = await readFile(
+    `./scripts/exports/${PERIOD}-edges.tsv`,
+    "utf-8"
+  );
   edges
     .split("\n")
     .slice(1)
@@ -74,7 +81,7 @@ async function main(PERIOD: string) {
 
   const fullColumns = [...nodes_base_columns, ...extra_columns] as const;
   await writeFile(
-    `./scripts/v1.1/${PERIOD}-nodes-attributes.tsv`,
+    `./scripts/exports/${PERIOD}-nodes-attributes.tsv`,
     fullColumns.join("\t") + "\n"
   );
 
@@ -99,7 +106,7 @@ async function main(PERIOD: string) {
 
     return () =>
       appendFile(
-        `./scripts/v1.1/${PERIOD}-nodes-attributes.tsv`,
+        `./scripts/exports/${PERIOD}-nodes-attributes.tsv`,
         fullColumns.map((column) => node_full[column]).join("\t") + "\n"
       );
   });
@@ -115,4 +122,5 @@ async function main(PERIOD: string) {
   await main("2022");
   await main("2023");
   await main("2024Q1");
+  await main("2024");
 })();

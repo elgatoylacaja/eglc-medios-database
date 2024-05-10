@@ -10,14 +10,14 @@ import {
   isEligible,
 } from "../src/lib/utils";
 import { YoutubeAPI } from "../src/lib/youtube";
-import { only_q1 } from "./0. common";
+// import { only_q1 } from "./0. common";
 
 const Config = {
   maxVideosResults: 6_000,
   maxCommentsResults: 100_000,
   timeRange: {
     start: "2020-01-01T00:00:00Z",
-    end: "2024-05-01T00:00:00Z",
+    end: "2025-01-01T00:00:00Z",
   },
   videosToCommentsChunkSize: 1000,
 };
@@ -48,7 +48,7 @@ const argv = yargs(process.argv.slice(2)).option("handle", {
 
 // Initialize YouTube API and task queue
 const API = new YoutubeAPI();
-const queue = new PQueue({ concurrency: 1 });
+const queue = new PQueue({ concurrency: 5 });
 
 async function run() {
   const files = await readdir("./scripts/json/channels");
@@ -84,12 +84,13 @@ async function processRow(row: SheetsRow) {
       `[${row.Handle}] - Channel has ${channel.statistics.videoCount} videos in total`
     );
 
-    const timeRange = only_q1.includes(row.Handle.toLowerCase().trim())
-      ? {
-          start: "2024-01-01T00:00:00Z",
-          end: "2024-04-01T00:00:00Z",
-        }
-      : Config.timeRange;
+    // const timeRange = only_q1.includes(row.Handle.toLowerCase().trim())
+    //   ? {
+    //       start: "2024-01-01T00:00:00Z",
+    //       end: "2024-04-01T00:00:00Z",
+    //     }
+    //   : Config.timeRange;
+    const timeRange = Config.timeRange;
 
     const playlistId = channel.contentDetails.relatedPlaylists.uploads;
     const playlistItems = await API.fetchPlaylistItems(playlistId, {

@@ -31,8 +31,8 @@ async function main() {
 
       if (channel.videos.length === 0) {
         console.log(`No videos found for ${handle}. Looking for video files.`);
-        const videos = await readdir(`./scripts/json/videos/${handle}`).then(
-          (files) =>
+        const videos = await readdir(`./scripts/json/videos/${handle}`)
+          .then((files) =>
             Promise.all(
               files.filter(isJson).map((file) =>
                 readFile(`./scripts/json/videos/${handle}/${file}`, {
@@ -40,16 +40,20 @@ async function main() {
                 }).then((data) => JSON.parse(data) as VideoWithComments[])
               )
             ).then(flat)
-        );
+          )
+          .catch((e) => {
+            console.error(e);
+            return [];
+          });
         console.log(`Found ${videos.length} videos for ${handle}.`);
-        await createVideos(videos);
+        await createVideos(channel.channel, videos);
         await executeSequentially(
           videos.map((video) => async () => {
             await createVideoComments(video);
           })
         );
       } else {
-        await createVideos(channel.videos);
+        await createVideos(channel.channel, channel.videos);
         await executeSequentially(
           channel.videos.map((video) => async () => {
             await createVideoComments(video);

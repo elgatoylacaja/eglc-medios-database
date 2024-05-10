@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = "postgresql://juanignaciocuiule@localhost:5432/canales-digitales"
+  url      = "postgresql://juanignaciocuiule@localhost:5432/canales-digitales-2024"
 }
 
 model Channel {
@@ -51,7 +51,7 @@ model Video {
 }
 
 model Comment {
-  id        String @id @default(uuid())
+  id        String @id
   channelId String
   videoId   String
   authorId  String

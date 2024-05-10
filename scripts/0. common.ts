@@ -54,6 +54,10 @@ export const ranges: Record<string, [Date, Date]> = {
     new Date(`2024-01-01T00:00:00.000Z`),
     new Date(`2024-04-01T00:00:00.000Z`),
   ],
+  "2024": [
+    new Date(`2024-01-01T00:00:00.000Z`),
+    new Date(`2025-01-01T00:00:00.000Z`),
+  ],
 };
 
 export const nodes_base_columns = [

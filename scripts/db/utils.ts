@@ -34,6 +34,7 @@ function mapVideo(video: VideoItem) {
 
 export function mapComment(comment: CommentSnippet, video: VideoItem) {
   return {
+    id: `${comment.videoId}-${comment.authorChannelId}-${comment.publishedAt}`,
     channelId: comment.channelId,
     videoId: comment.videoId,
     authorId: comment.authorChannelId.value,
@@ -100,17 +101,22 @@ export async function createChannel(item: Item) {
     .then(() => console.log(`Channel with id: ${channelId} created.`));
 }
 
-export async function createVideos(videos: VideoItem[]) {
+export async function createVideos(
+  channel: Item["channel"],
+  videos: VideoItem[]
+) {
   await prisma.video
     .createMany({
       data: videos.map(mapVideo),
       skipDuplicates: true,
     })
-    .then((res) =>
-      console.log(
-        `Videos for channel: ${videos[0].snippet.channelId} created. ${res.count} videos created.`
-      )
-    );
+    .then((res) => {
+      if (videos.length > 0) {
+        console.log(
+          `Videos for channel: \t ${channel.snippet.customUrl} \t ${channel.id} created. ${res.count} videos created.`
+        );
+      }
+    });
 }
 
 export async function createVideoComments(video: VideoWithComments) {
@@ -124,6 +130,7 @@ export async function createVideoComments(video: VideoWithComments) {
 
   await prisma.comment.createMany({
     data: comments,
+    skipDuplicates: true,
   });
 }
 
@@ -170,27 +177,6 @@ export async function queryAuthorsInCommon(
   });
 
   return result;
-
-  // const resultAB: { count: number }[] = await prisma.$queryRaw`
-  //   select count(distinct "authorId")
-  //   from "Comment"
-  //   where "channelId" = ${
-  //     channelA.id
-  //   } and "publishedAt" >= ${publishedAt.gte.toISOString()}::timestamp AND
-  //         "publishedAt" <= ${publishedAt.lte.toISOString()}::timestamp AND
-  //         "videoPublishedAt" >= ${publishedAt.gte.toISOString()}::timestamp AND
-  //         "videoPublishedAt" <= ${publishedAt.lte.toISOString()}::timestamp
-  //   and "authorId" in (
-  //     select "authorId"
-  //     from "Comment"
-  //     where "channelId" = ${
-  //       channelB.id
-  //     } and "publishedAt" >= ${publishedAt.gte.toISOString()}::timestamp AND
-  // "publishedAt" <= ${publishedAt.lte.toISOString()}::timestamp AND
-  // "videoPublishedAt" >= ${publishedAt.gte.toISOString()}::timestamp AND
-  // "videoPublishedAt" <= ${publishedAt.lte.toISOString()}::timestamp
-  //   );`;
-  // return parseInt(resultAB[0].count.toString());
 }
 
 export async function channelsWithComments(publishedAt: {

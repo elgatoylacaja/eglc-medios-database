@@ -13,7 +13,7 @@ type Config = {
 };
 
 async function writeEdges(channels: Channel[], config: Config) {
-  const queue = new PQueue({ concurrency: 10 });
+  const queue = new PQueue({ concurrency: 8 });
 
   const edgesFileName = `${config.period}-edges.tsv`;
   const edgesFileExists = await readdir("./scripts/exports").then((files) =>
@@ -60,6 +60,8 @@ async function writeEdges(channels: Channel[], config: Config) {
       }
     });
   }
+
+  await queue.onIdle();
 }
 
 async function writeNodes(channels: Channel[], config: Config) {
