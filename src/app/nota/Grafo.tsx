@@ -1,9 +1,9 @@
 "use client";
-import { useCallback, useEffect, useRef } from "react";
-import { GraphCluster, GraphEdge, GraphNode, Positions } from "./types";
-import { twMerge } from "tailwind-merge";
 import * as d3 from "d3";
+import { useCallback, useEffect, useRef } from "react";
+import { twMerge } from "tailwind-merge";
 import NodeLabel from "./NodeLabel";
+import { GraphCluster, GraphEdge, GraphNode, Positions } from "./types";
 import {
   getDefaultHighlight,
   getEdgeId,
@@ -12,7 +12,7 @@ import {
   numberToLabel,
   rScaleGenerator,
   wScaleGenerator,
-} from "./common";
+} from "./utils";
 
 type Props = {
   id: string;
@@ -44,7 +44,7 @@ export default function Grafo(props: Props) {
   const {
     id,
     nodes,
-    edges: intialEdges,
+    edges: initialEdges,
     positions,
     minWeight = 0,
     clusters = [],
@@ -55,7 +55,7 @@ export default function Grafo(props: Props) {
   } = props;
   const ref = useRef<SVGSVGElement>(null);
 
-  const edges = intialEdges.filter(
+  const edges = initialEdges.filter(
     (edge) =>
       edge.weight >= minWeight || edgesToHighlight.includes(getEdgeId(edge))
   );
@@ -64,8 +64,8 @@ export default function Grafo(props: Props) {
     props;
 
   const rScale = rScaleGenerator(nodes, [30, 140]);
-  const wScale = wScaleGenerator(edges, [5, 50]);
-  
+  const wScale = wScaleGenerator(initialEdges, [5, 50]);
+
   const highlightNodes = useCallback(
     (handles: string[] = nodesToHighlight) => {
       if (ref.current) {
@@ -186,6 +186,33 @@ export default function Grafo(props: Props) {
     // raiseNetwork();
   }, [onNodeMouseOut, animateLines]);
 
+  // const leftMost = Math.min(...Object.values(positions).map((_) => _.x));
+  // const topMost = Math.min(...Object.values(positions).map((_) => _.y));
+  // const rightMost = Math.max(...Object.values(positions).map((_) => _.x));
+  // const bottomMost = Math.max(...Object.values(positions).map((_) => _.y));
+
+  // const boxWidth = rightMost - leftMost;
+  // const boxHeight = bottomMost - topMost;
+
+  // const dx = (2000 - boxWidth) / 2 - leftMost - 1000;
+  // const dy = (2000 - boxHeight) / 2 - topMost - 1000;
+
+  const zoomToNode = useCallback(
+    (handle: string) => {
+      if (ref.current) {
+        const { x, y } = positions[handle];
+        const svg = d3.select(ref.current);
+
+        svg
+          .select(".canvas")
+          .transition()
+          .duration(500)
+          .attr("transform", `scale(1.5) translate(${-x}, ${-y})`);
+      }
+    },
+    [ref, positions]
+  );
+
   return (
     <svg
       id={id}
@@ -196,93 +223,107 @@ export default function Grafo(props: Props) {
         className
       )}
     >
-      {/* Edges */}
-      {edges.map((edge) => {
-        const edgeId = getEdgeId(edge);
+      {/* <rect
+        x={leftMost}
+        y={topMost}
+        width={boxWidth}
+        height={boxHeight}
+        style={{
+          transform: `translate(${dx}px, ${dy}px)`,
+        }}
+        fill="gray"
+        fillOpacity={0.1}
+      ></rect> */}
+      <g className="canvas">
+        {/* <g> */}
+        {/* Edges */}
+        {edges.map((edge) => {
+          const edgeId = getEdgeId(edge);
 
-        return (
-          <line
-            key={`edge-${edgeId}`}
-            id={`edge-${edgeId}`}
-            className="edge stroke-gray-800 transition-all"
-          />
-        );
-      })}
+          return (
+            <line
+              key={`edge-${edgeId}`}
+              id={`edge-${edgeId}`}
+              className="edge stroke-gray-800 transition-all"
+            />
+          );
+        })}
 
-      {/* Nodes */}
-      {nodes.map((node) => {
-        const { x, y } = positions[node.handle];
+        {/* Nodes */}
+        {nodes.map((node) => {
+          const { x, y } = positions[node.handle];
 
-        const r = rScale(node.pageRank);
-        const imgR = r * 0.9;
+          const r = rScale(node.pageRank);
+          const imgR = r * 0.9;
 
-        const showLabel = labelsToShow.includes(node.handle);
-        const showViews = viewsToShow.includes(node.handle);
+          const showLabel = labelsToShow.includes(node.handle);
+          const showViews = viewsToShow.includes(node.handle);
 
-        const cluster: GraphCluster = clusters.find((cluster) =>
-          cluster.nodes.includes(node.handle)
-        ) || { nodes: [], color: "black", id: "regular" };
+          const cluster: GraphCluster = clusters.find((cluster) =>
+            cluster.nodes.includes(node.handle)
+          ) || { nodes: [], color: "#3E3E3E", id: "regular" };
 
-        return (
-          <g
-            id={`node-${getNodeId(node)}`}
-            key={`node-${getNodeId(node)}`}
-            className={twMerge(
-              "node",
-              "transition-all *:transition-all *:duration-500"
-            )}
-            // style={{ transform: `translate(${x}px, ${y}px)` }}
-            onMouseOver={() => {
-              onNodeMouseOver(node.handle);
-            }}
-            onMouseOut={() => {
-              onNodeMouseOut();
-            }}
-            transform={`translate(${x}, ${y})`}
-          >
-            <circle cx={0} cy={0} r={r} className="fill-white" />
+          return (
+            <g
+              id={`node-${getNodeId(node)}`}
+              key={`node-${getNodeId(node)}`}
+              className={twMerge(
+                "node",
+                "transition-all *:transition-all *:duration-500"
+              )}
+              // style={{ transform: `translate(${x}px, ${y}px)` }}
+              onMouseOver={() => {
+                onNodeMouseOver(node.handle);
+              }}
+              onMouseOut={() => {
+                onNodeMouseOut();
+              }}
+              transform={`translate(${x}, ${y})`}
+            >
+              <circle cx={0} cy={0} r={r} className="fill-white" />
 
-            {/* Thumbnail */}
-            <g className={twMerge(`thumbnail cluster-${cluster.id}`)}>
-              {/* Border circle */}
-              <circle
-                cx={0}
-                cy={0}
-                r={r}
-                fill={cluster.color}
-                className="transition-colors"
-              />
-              <image
-                href={node.thumbnail}
-                clipPath="inset(0% round 100%)"
-                x={-imgR}
-                y={-imgR}
-                width={imgR * 2}
-                height={imgR * 2}
-              />
+              {/* Thumbnail */}
+              <g className={twMerge(`thumbnail cluster-${cluster.id}`)}>
+                {/* Border circle */}
+                <circle
+                  cx={0}
+                  cy={0}
+                  r={r}
+                  fill={cluster.color}
+                  className="transition-colors"
+                />
+                <image
+                  href={node.thumbnail}
+                  clipPath="inset(0% round 100%)"
+                  x={-imgR}
+                  y={-imgR}
+                  width={imgR * 2}
+                  height={imgR * 2}
+                />
 
-              <NodeLabel
-                r={r}
-                text={node.name}
-                position={"bottom-center"}
-                className={twMerge(showLabel ? "opacity-100" : "opacity-0")}
-                background={cluster.color}
-                stroke={"transparent"}
-                color="white"
-              />
-              <NodeLabel
-                r={r}
-                text={numberToLabel(node.viewCount)}
-                position={"top-center"}
-                withIcon
-                color="#E7401D"
-                className={twMerge(showViews ? "opacity-100" : "opacity-0")}
-                rounded
-              />
+                <NodeLabel
+                  r={r}
+                  text={node.name}
+                  position={"bottom-center"}
+                  className={twMerge(showLabel ? "opacity-100" : "opacity-0")}
+                  background={cluster.color}
+                  stroke={"transparent"}
+                  color="white"
+                />
+                <NodeLabel
+                  r={r}
+                  text={numberToLabel(node.viewCount)}
+                  position={"top-center"}
+                  withIcon
+                  color="#E7401D"
+                  className={twMerge(showViews ? "opacity-100" : "opacity-0")}
+                  rounded
+                />
+              </g>
             </g>
-          </g>
-        );
-      })}
+          );
+        })}
+      </g>
     </svg>
   );
 }

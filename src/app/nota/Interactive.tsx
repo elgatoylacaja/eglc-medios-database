@@ -1,10 +1,11 @@
 "use client";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { twMerge } from "tailwind-merge";
 import Grafo from "./Grafo";
+import { YearKey } from "./common";
 import { GraphCluster, GraphEdge, GraphNode, Positions } from "./types";
-import { YearKey, getEdgeId, nodeInEdge, years } from "./common";
-import { keys } from "../../lib/utils";
+import { getNodeNetwork, getSubNetwork } from "./utils";
+import * as d3 from "d3";
 
 type Props = {
   data: Record<
@@ -18,6 +19,7 @@ type Props = {
 };
 
 type Config = {
+  id: string;
   year: YearKey;
   minWeight: number;
   nodesToHighlight?: string[];
@@ -27,15 +29,59 @@ type Config = {
   clusters?: GraphCluster[];
 };
 
-const classes = {
-  "scrolly-card":
-    "flex flex-col justify-start gap-2 p-3 bg-gray-200/95 border border-black w-full *:text-sm",
-  "card-button":
-    "font-mono px-2 py-1 leading-none border border-black rounded-md w-fit text-xs pointer-events-auto",
-};
+function StepCard(props: {
+  id: string;
+  currentId: string;
+  onStep: (id: string) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className={twMerge(
+        "flex flex-col justify-start gap-2 p-3 border border-black w-full text-sm transition-colors",
+        props.id === props.currentId ? "bg-gray-200/95" : "white"
+      )}
+    >
+      {props.children}
+      <button
+        className={twMerge(
+          "font-mono px-2 py-1 leading-none border border-black rounded-md w-fit text-xs bg-white hover:bg-gray-500 transition-colors"
+        )}
+        onClick={() => {
+          // resetZoom();
+          props.onStep(props.id);
+        }}
+      >
+        Click
+      </button>
+    </div>
+  );
+}
+
+function zoomToNode(handle: string, positions: Positions) {
+  const { x, y } = positions[handle];
+  const svg = d3.select("svg#grafo-scrolly");
+
+  svg
+    .select(".canvas")
+    .transition()
+    .duration(500)
+    .attr("transform", `scale(1.5) translate(${-x}, ${-y})`);
+}
+
+function resetZoom() {
+  const svg = d3.select("svg#grafo-scrolly");
+
+  svg
+    .select(".canvas")
+    .transition()
+    .duration(500)
+    .attr("transform", `scale(1) translate(0, 0)`);
+}
 
 export default function Interactive(props: Props) {
   const [config, setConfig] = useState<Config>({
+    id: "initial",
     year: "2020",
     minWeight: 2000,
     nodesToHighlight: props.data["2020"].nodes.map((n) => n.handle),
@@ -63,604 +109,515 @@ export default function Interactive(props: Props) {
       {/* Scrolly steps */}
       <div
         className={twMerge(
-          "flex flex-col col-span-5 h-full overflow-scroll py-20",
+          "flex flex-col col-span-5 h-full overflow-scroll py-20 no-scrollbar",
           "absolute top-0 bottom-0 w-11/12 left-1/2 -translate-x-1/2 z-10",
           "md:relative"
         )}
       >
-        <div className="flex flex-col justify-center items-center z-10 md:gap-40 gap-[80dvh]">
-          {/* Step 1 */}
-          <div className={twMerge(classes["scrolly-card"], "mt-[60dvh]")}>
-            <p className="font-bold">2020: La sociedad secreta</p>
-            <p>
-              Lorem ipsum dolor sit amet consectetur adipisicing elit. Voluptate
-              provident temporibus esse illo ab error. Nobis, temporibus et
-              architecto adipisci perferendis corrupti similique quidem totam
-              esse quibusdam expedita fugit possimus!
-            </p>
-            <button
-              className={classes["card-button"]}
-              onClick={() => {
-                const { nodes } = props.data["2020"];
-                setConfig((conf) => ({
-                  year: "2020" as YearKey,
-                  minWeight: 2000,
-                  nodesToHighlight: nodes.map((n) => n.handle),
-                }));
-              }}
-            >
-              Click
-            </button>
-          </div>
+        <div className="flex flex-col justify-center items-center z-10 md:gap-10 gap-[20dvh]">
+          <StepCard
+            onStep={(id) => {
+              const { nodes } = props.data["2020"];
+              setConfig({
+                id,
+                year: "2020",
+                minWeight: 2000,
+                nodesToHighlight: nodes.map((n) => n.handle),
+              });
+            }}
+            id="initial"
+            currentId={config.id}
+          >
+            <p className="font-bold">2020: Inicio</p>
+            <p>Mostramos todos los canales y solo las aristas de más de 2000</p>
+            <p>Especificamos: año, minimo peso, nodos (entran todos)</p>
+          </StepCard>
 
-          {/* Step 2 */}
-          <div className={classes["scrolly-card"]}>
+          <StepCard
+            onStep={(id) => {
+              setConfig({
+                id,
+                year: "2020",
+                minWeight: 2000,
+              });
+            }}
+            id="comunidad-libertaria"
+            currentId={config.id}
+          >
+            <p className="font-bold">La comunidad libertaria</p>
+            <p>Mosramos solo los canales con aristas de más de 2000</p>
             <p>
-              La comunidad libertaria fue la primera en constituirse como tal.
+              Especificamos: año, mínimo peso (los nodos se destacan si tienen
+              aristas con ese mínimo peso)
             </p>
-            <button
-              className={classes["card-button"]}
-              onClick={() => {
-                setConfig((conf) => ({
-                  year: "2020" as YearKey,
-                  minWeight: 2000,
-                  nodesToHighlight: [
-                    "@elprestook",
-                    "@francopisso",
-                    "@tipitoenojado",
-                    "@tipitolive",
-                    "@losherederosdealberdi",
-                    "@danannoficial",
-                    "@agustinlajeok",
-                    "@ramiromarra",
-                    "@planmmaximontenegro",
-                    "@nicolasmarqueztv",
-                  ],
-                }));
-              }}
-            >
-              Click
-            </button>
-          </div>
+          </StepCard>
 
-          {/* Step 3 */}
-          <div className={classes["scrolly-card"]}>
+          <StepCard
+            onStep={(id) => {
+              setConfig({
+                id,
+                year: "2020",
+                minWeight: 2000,
+                clusters: [
+                  {
+                    id: "danann",
+                    nodes: [
+                      "@danannoficial",
+                      "@agustinlajeok",
+                      "@nicolasmarqueztv",
+                    ],
+                    color: "#E7401D",
+                  },
+                  {
+                    id: "presto",
+                    nodes: ["@elprestook", "@tipitoenojado"],
+                    color: "#F2E227",
+                  },
+                ],
+              });
+            }}
+            id="clusters-libertarios"
+            currentId={config.id}
+          >
+            <p className="font-bold">Clusters libertarios</p>
+            <p>Mostramos los dos clusters libertarios</p>
             <p>
-              Por supuesto, no era homogénea. Por un lado, estaban quienes
-              elegían a{" "}
-              <span className="bg-yellow-400 p-0.5 px-2">Tipito Enojado</span> y
-              <span className="bg-yellow-400 p-0.5 px-2">El Presto</span>,
-              famosos por su discurso económico y político. Por otro lado, los
-              paladares que preferían a{" "}
-              <span className="bg-red-500 p-0.5 px-2">Danann</span> y{" "}
-              <span className="bg-red-500 p-0.5 px-2">Agustín Laje</span>, más
-              abocados a la batalla cultural. Cuando se quiera minimizar el
-              fenómeno de los nuevos medios, hay que recordar que ambas líneas
-              editoriales planteaban agendas que en aquel momento casi podían
-              considerarse de nicho o hasta contraculturales, y que hoy son
-              parte del discurso de la mismísima Presidencia de la Nación.
+              Especificamos: año, mínimo peso (los nodos se destacan si tienen
+              aristas con ese mínimo peso), los dos clusters poniendo nodos a
+              mano.
             </p>
-            <button
-              className={classes["card-button"]}
-              onClick={() => {
-                setConfig((conf) => ({
-                  year: "2020" as YearKey,
-                  minWeight: 2000,
-                  nodesToHighlight: [
-                    "@elprestook",
-                    "@francopisso",
-                    "@tipitoenojado",
-                    "@tipitolive",
-                    "@losherederosdealberdi",
-                    "@ramiromarra",
-                    "@planmmaximontenegro",
-                    "@nicolasmarqueztv",
-                    "@agustinlajeok",
-                    "@danannoficial",
-                  ],
-                  clusters: [
-                    {
-                      id: "tipito-presto",
-                      nodes: [
-                        "@elprestook",
-                        "@francopisso",
-                        "@tipitoenojado",
-                        "@tipitolive",
-                        "@losherederosdealberdi",
-                        "@ramiromarra",
-                        "@planmmaximontenegro",
-                        "@nicolasmarqueztv",
-                      ],
-                      color: "rgb(250 204 21)",
-                    },
-                    {
-                      id: "danann-laje",
-                      nodes: ["@agustinlajeok", "@danannoficial"],
-                      color: "rgb(239 68 68)",
-                    },
-                  ],
-                }));
-              }}
-            >
-              Click
-            </button>
-          </div>
-
-          {/* Step 3 */}
-          <div className={classes["scrolly-card"]}>
             <p>
-              ¿Era esto previsible? ¿Por qué nadie la vio por fuera de los
-              miembros de esa comunidad? Quizás los que no la vieron estaban
-              mirando otra cosa:{" "}
-              <span className="bg-red-500 p-0.5 px-2">FiloNews</span> tiene la
-              mayor cantidad de vistas ese año{" "}
-              <span className="bg-red-500 p-0.5 px-2">91M</span> , pero no
-              conformaba tan sólidamente una comunidad. ¿Por qué? Porque era
-              poco probable que su audiencia comentara también otros canales.
-              Tampoco comentaban en Luzu, ni en Rebord, ni en FutuRock, Nico
-              Guthman, Pablo Borda o cualquiera de los otros canales incipientes
-              que asomaban en el horizonte. La conversación cruzada en 2020 fue
-              un invento libertario. Una suerte de sociedad secreta, pero a la
-              vista de todos.
+              <span className="text-orange-400 font-bold">TODO:</span> definir
+              si siempre que mostramos cluster se van a ver todos los nodos del
+              cluster por más que no tengan arsitas con el peso mínimo y qué
+              pasa con los que cumplen con las aristas pero no son de los
+              clusters?
             </p>
-            <button
-              className={classes["card-button"]}
-              onClick={() => {
-                const { edges } = props.data["2020"];
-                const filoEdges = edges.filter(
-                  (edge) => nodeInEdge("@filonews", edge) && edge.weight >= 2000
-                );
-                const nodesConnectedToFilo = Array.from(
-                  new Set(
-                    filoEdges.flatMap((edge) => [edge.target, edge.source])
-                  )
-                );
-                setConfig((conf) => ({
-                  year: "2020" as YearKey,
-                  minWeight: 2000,
-                  nodesToHighlight: nodesConnectedToFilo,
-                  viewsToShow: nodesConnectedToFilo,
-                }));
-              }}
-            >
-              Click
-            </button>
-          </div>
+          </StepCard>
 
-          {/* Step 5 */}
-          <div className={classes["scrolly-card"]}>
+          <StepCard
+            onStep={(id) => {
+              const { nodes, edges } = props.data["2020"];
+              const topViews = Array.from(nodes)
+                .sort((a, b) => b.viewCount - a.viewCount)
+                .slice(0, 5)
+                .map((_) => _.handle);
+              const { nodesIds, edgesIds } = getNodeNetwork(
+                "@filonews",
+                edges.filter((e) => e.weight > 2000)
+              );
+              setConfig({
+                id,
+                year: "2020",
+                minWeight: 2000,
+                viewsToShow: topViews,
+                nodesToHighlight: nodesIds,
+                edgesToHighlight: edgesIds,
+                labelsToShow: ["@filonews"],
+              });
+            }}
+            id="mirando-filo"
+            currentId={config.id}
+          >
+            <p className="font-bold">Mirando Filo</p>
+            <p>
+              Mostramos que filo es top 1 en views y sus conexiones (es como
+              haber hecho hover en filo)
+            </p>
+            <p>
+              Especificamos: año, mínimo peso, views de los top 5 nodos y todos
+              los nodos/aristas que pertenecen a la red de filo con peso mayor a
+              2000
+            </p>
+            <p>
+              <span className="text-orange-400 font-bold">TODO:</span> acá al
+              definir el step estoy repitiendo la lógica de hover sobre un nodo,
+              me gustaría que cuando extraigamos eso para hacer el hover sobre
+              los tags en texto se pueda reutilizar acá.
+            </p>
+          </StepCard>
+
+          <StepCard
+            onStep={(id) => {
+              const { nodes } = props.data["2021"];
+              setConfig({
+                id,
+                year: "2021",
+                minWeight: 2000,
+                nodesToHighlight: nodes.map((n) => n.handle),
+              });
+            }}
+            id="initial-2021"
+            currentId={config.id}
+          >
             <p className="font-bold">2021: Las invasiones bárbaras</p>
             <p>
-              El 2021 fue un año confuso. ¿Estábamos o no en pandemia todavía?
-              Las clases volvían intermitentemente. Los usuarios ya estaban
-              entrenados en la virtualidad, en las compras a distancia, en los
-              nuevos modos de consumir. El pasado lucía remoto y el futuro no
-              terminaba de llegar. En ese contexto, la comunidad libertaria se
-              consolidó aún más. Sin embargo, las murallas empezaban a
-              resquebrajarse. La comunidad desbordó y tendió lazos con otros
-              nodos más exóticos. Se abrió, siquiera un poco.{" "}
+              Mostramos todos los canales y solo las aristas de más de 2000 para
+              el año 2021
             </p>
-            <button
-              className={classes["card-button"]}
-              onClick={() => {
-                const { nodes, edges } = props.data["2021"];
-                setConfig((conf) => ({
-                  year: "2021" as YearKey,
-                  minWeight: 2000,
-                  nodesToHighlight: nodes.map((n) => n.handle),
-                }));
-              }}
-            >
-              Click
-            </button>
-          </div>
+            <p>Especificamos: año, minimo peso, nodos (entran todos)</p>
+          </StepCard>
 
-          {/* Step 6 */}
-          <div className={classes["scrolly-card"]}>
-            <p>
-              Y más importante aún, una nueva comunidad empezó a gestarse.
-              Digamos, mejor, un nuevo un territorio que emergió de las aguas,
-              conectado pero sin división política clara:{" "}
-              <span className="bg-black text-white p-0.5 px-2">El Método</span>,
-              <span className="bg-black text-white p-0.5 px-2">Futurock</span>,{" "}
-              <span className="bg-black text-white p-0.5 px-2">Azzaro</span> y{" "}
-              <span className="bg-black text-white p-0.5 px-2">
-                Luquitas Rodríguez
-              </span>
-              , con{" "}
-              <span className="bg-black text-white p-0.5 px-2">Filo News</span>{" "}
-              como punto de encuentro, empezaron a alimentar otra conversación.
-            </p>
-            <button
-              className={classes["card-button"]}
-              onClick={() => {
-                const { edges } = props.data["2021"];
-                const rest = [
-                  "@luzutv",
-                  "@somosgelatina",
-                  "@somosazz",
+          <StepCard
+            onStep={(id) => {
+              setConfig({
+                id,
+                year: "2021",
+                minWeight: 2000,
+              });
+            }}
+            id="centrales-2021"
+            currentId={config.id}
+          >
+            <p className="font-bold">Los importantes del 2021</p>
+            <p>Especificamos: año, minimo peso (solo nodos con más 2000)</p>
+          </StepCard>
+
+          <StepCard
+            onStep={(id) => {
+              const { edges } = props.data["2021"];
+              const { nodesIds, edgesIds } = getNodeNetwork(
+                "@filonews",
+                edges.filter((e) => e.weight > 1000)
+              );
+              setConfig({
+                id,
+                year: "2021",
+                minWeight: 2000,
+                nodesToHighlight: nodesIds,
+                edgesToHighlight: edgesIds,
+                labelsToShow: [
+                  "@filonews",
                   "@luquitasrodriguez",
-                  "@elmetodorebord",
+                  "@somosazz",
                   "@futurock",
-                  "@paisdeboludos",
-                ];
-
-                const edgesFromFiloToOthers = edges.filter((edge) => {
-                  return (
-                    (edge.source === "@filonews" &&
-                      rest.includes(edge.target)) ||
-                    (edge.target === "@filonews" && rest.includes(edge.source))
-                  );
-                });
-                setConfig((conf) => ({
-                  year: "2021" as YearKey,
-                  minWeight: 2000,
-                  nodesToHighlight: [...rest, "@filonews"],
-                  edgesToHighlight: edgesFromFiloToOthers.map(getEdgeId),
-                  labelsToShow: [
-                    "@somosazz",
-                    "@futurock",
-                    "@elmetodorebord",
-                    "@filonews",
-                    "@luquitasrodriguez",
-                  ],
-                }));
-              }}
-            >
-              Click
-            </button>
-          </div>
-
-          {/* Step 7 */}
-          <div className={classes["scrolly-card"]}>
+                ],
+              });
+            }}
+            id="nuevo-territorio"
+            currentId={config.id}
+          >
+            <p className="font-bold">Nuevo territorio</p>
             <p>
-              <span className="bg-[#44f261] p-0.5 px-2">Gelatina</span> (todavía
-              en su protoforma “Pedro Rosemblat”) ya estaban rosqueando su
-              pertenencia a este espacio y a la vez siendo parte de una
-              conversación más amplia con actores diferentes.
+              Lo mismo que arriba pero haciendo hover el filo y mostrando
+              aristas más livianas
             </p>
-            <button
-              className={classes["card-button"]}
-              onClick={() => {
-                const { nodes, edges } = props.data["2021"];
-                const rest = [
-                  "@elmetodorebord",
+            <p>
+              <span className="text-orange-400 font-bold">TODO:</span> ver si
+              queremos elegir las conexiones con filo a mano (ahora se muestran
+              las que pesan más de 1000). Tenemos que pensar que pasa acá si
+              mostramos estas conexiones a filo con la escala de pesos porque
+              estaría mal decir que va de 2000 a X.
+            </p>
+          </StepCard>
+
+          <StepCard
+            onStep={(id) => {
+              const { edges, positions } = props.data["2021"];
+              const { nodesIds, edgesIds } = getNodeNetwork(
+                "@somosgelatina",
+                edges.filter((e) => e.weight > 500)
+              );
+              setConfig({
+                id,
+                year: "2021",
+                minWeight: 2000,
+                nodesToHighlight: nodesIds,
+                edgesToHighlight: edgesIds,
+                labelsToShow: [
+                  "@somosgelatina",
+                  "@luquitasrodriguez",
+                  "@somosazz",
                   "@futurock",
-                  "@paisdeboludos",
-                  "@220podcast",
-                  "@incatube",
-                  "@somosmatear",
-                  "@leylabechara",
-                  "@circulovicioso8",
-                  "@pablobordaok",
-                  "@cafekyoto",
-                ];
+                ],
+              });
 
-                const edgesFromGelatinaToOthers = edges.filter((edge) => {
-                  return (
-                    (edge.source === "@somosgelatina" &&
-                      rest.includes(edge.target)) ||
-                    (edge.target === "@somosgelatina" &&
-                      rest.includes(edge.source))
-                  );
-                });
-                setConfig((conf) => ({
-                  year: "2021" as YearKey,
-                  minWeight: 2000,
-                  nodesToHighlight: [...rest, "@somosgelatina"],
-                  edgesToHighlight: edgesFromGelatinaToOthers.map(getEdgeId),
-                  labelsToShow: ["@somosgelatina"],
-                  clusters: [
-                    {
-                      id: "gelatina",
-                      nodes: ["@somosgelatina"],
-                      color: "#44f261",
-                    },
-                  ],
-                }));
-              }}
-            >
-              Click
-            </button>
-          </div>
-
-          {/* Step 8 */}
-          <div className={classes["scrolly-card"]}>
+              // zoomToNode("@somosgelatina", positions);
+            }}
+            id="pedro-rosemblat"
+            currentId={config.id}
+          >
+            <p className="font-bold">Gelatina / Pedro</p>
             <p>
-              En este escenario,{" "}
-              <span className="bg-red-500 p-0.5 px-2">Luzu</span> ya se ubica
-              4to en cantidad de views, pero su audiencia no comenta en otros
-              canales, por eso se lo ve pequeño, solo y aislado.
+              Lo mismo que arriba pero haciendo hover el filo y mostrando
+              aristas más livianas
             </p>
-            <button
-              className={classes["card-button"]}
-              onClick={() => {
-                const { nodes, edges } = props.data["2021"];
-                const top5 = Array.from(nodes)
-                  .sort((a, b) => b.viewCount - a.viewCount)
-                  .slice(0, 5);
-                setConfig((conf) => ({
-                  year: "2021" as YearKey,
-                  minWeight: 2000,
-                  nodesToHighlight: top5.map((n) => n.handle),
-                  viewsToShow: top5.map((n) => n.handle),
-                  labelsToShow: ["@luzutv"],
-                }));
-              }}
-            >
-              Click
-            </button>
-          </div>
-
-          {/* Step 9 */}
-          <div className={classes["scrolly-card"]}>
             <p>
-              Y un pequeño actor aparece con una centralidad insospechada:{" "}
-              <span className="bg-red-500 p-0.5 px-2">Break Point</span> todavía
-              es una estrella pequeña en el firmamento libertario, pero dará
-              forma al mundo a niveles que aún nadie podía sospechar.
+              <span className="text-orange-400 font-bold">TODO:</span> ver si
+              queremos elegir las conexiones con filo a mano (ahora se muestran
+              las que pesan más de 1000). Tenemos que pensar que pasa acá si
+              mostramos estas conexiones a filo con la escala de pesos porque
+              estaría mal decir que va de 2000 a X.
             </p>
-            <button
-              className={classes["card-button"]}
-              onClick={() => {
-                const { edges } = props.data["2021"];
+            <p>
+              <span className="text-blue-400 font-bold">FEATURE:</span> si
+              quisieramos podemos hacer zoom a algún nodo en particular. Puede
+              servir en estos casos donde el tamaño de gelatina es chico para el
+              grafo global
+            </p>
+          </StepCard>
 
-                const edgesFromBreakpoint = edges.filter((edge) => {
-                  return (
-                    [edge.source, edge.target].includes("@breakpointmp") &&
-                    edge.weight >= 2000
-                  );
-                });
-                setConfig((conf) => ({
-                  year: "2021" as YearKey,
-                  minWeight: 2000,
-                  nodesToHighlight: edgesFromBreakpoint.flatMap((e) => [
-                    e.source,
-                    e.target,
-                  ]),
-                  edgesToHighlight: edgesFromBreakpoint.map(getEdgeId),
-                  labelsToShow: ["@breakpointmp"],
-                }));
-              }}
-            >
-              Click
-            </button>
-          </div>
+          <StepCard
+            onStep={(id) => {
+              const { nodes } = props.data["2021"];
+              const top4 = Array.from(nodes)
+                .sort((a, b) => b.viewCount - a.viewCount)
+                .slice(0, 4)
+                .map((_) => _.handle);
+              setConfig({
+                id,
+                year: "2021",
+                minWeight: 2000,
+                nodesToHighlight: top4,
+                viewsToShow: top4,
+              });
+            }}
+            id="views-luzu"
+            currentId={config.id}
+          >
+            <p className="font-bold">Views luzu</p>
+            <p>
+              Acá mostramos lo mismo que el inicio del año pero destacando que
+              luzu se mete entre top 5 de viewcount
+            </p>
+            <p>
+              <span className="text-orange-400 font-bold">TODO:</span> acá hay
+              que ver como ajustamos los labels de nombre/views para que se vea
+              algo en nodos tan chicos
+            </p>
+          </StepCard>
 
-          {/* Step 10 */}
-          <div className={classes["scrolly-card"]}>
+          <StepCard
+            onStep={(id) => {
+              const { edges } = props.data["2021"];
+              const { nodesIds, edgesIds } = getNodeNetwork(
+                "@breakpointmp",
+                edges.filter((e) => e.weight > 2000)
+              );
+              setConfig({
+                id,
+                year: "2021",
+                minWeight: 2000,
+                edgesToHighlight: edgesIds,
+                nodesToHighlight: nodesIds,
+                labelsToShow: ["@breakpointmp"],
+              });
+            }}
+            id="aparece-breakpoint"
+            currentId={config.id}
+          >
+            <p className="font-bold">Aparece breakpoint</p>
+            <p>
+              Mostramos a breakpoint y sus conexiones de más de 2000 coautores
+            </p>
+          </StepCard>
+
+          <StepCard
+            onStep={(id) => {
+              const { nodes } = props.data["2022"];
+              setConfig({
+                id,
+                year: "2022",
+                minWeight: 2000,
+                nodesToHighlight: nodes.map((n) => n.handle),
+              });
+            }}
+            id="initial-2022"
+            currentId={config.id}
+          >
             <p className="font-bold">2022: ¿No están entretenidos?</p>
             <p>
-              La nueva normalidad trae dos fenómenos claros al mapa de nuevos
-              medios digitales. Por un lado, el mainstream. Las grandes
-              audiencias parecen descubrir que acá está pasando algo y aumenta
-              mucho la cantidad de personas que miran Luzu, Azzaro, Luquitas
-              Rodriguez, El Método y FutuRock. Y si bien continúa el dominio de
-              los libertarios, se empiezan a consolidar nuevas comunidades. El
-              mapa crece y se reordena.
+              Mostramos todos los canales y solo las aristas de más de 2000 para
+              el año 2022
             </p>
-            <button
-              className={classes["card-button"]}
-              onClick={() => {
-                const { nodes } = props.data["2022"];
-                setConfig((conf) => ({
-                  year: "2022" as YearKey,
-                  minWeight: 2000,
-                  nodesToHighlight: nodes.map((n) => n.handle),
-                }));
-              }}
-            >
-              Click
-            </button>
-          </div>
+            <p>Especificamos: año, minimo peso, nodos (entran todos)</p>
+          </StepCard>
 
-          {/* Step 10 */}
-          <div className={classes["scrolly-card"]}>
+          <StepCard
+            onStep={(id) => {
+              setConfig({
+                id,
+                year: "2022",
+                minWeight: 2000,
+              });
+            }}
+            id="centrales-2022"
+            currentId={config.id}
+          >
+            <p className="font-bold">Los importantes del 2022</p>
+            <p>Especificamos: año, minimo peso (solo nodos con más 2000)</p>
+          </StepCard>
+
+          <StepCard
+            onStep={(id) => {
+              const { nodes, edges } = props.data["2022"];
+              const group = [
+                "@vorterixoficial",
+                "@luquitasrodriguez",
+                "@elmetodorebord",
+                "@parenlamano",
+                "@neuramedia",
+                "@somosazz",
+              ];
+              const { nodesIds, edgesIds } = getSubNetwork(group, edges);
+              setConfig({
+                id,
+                year: "2022",
+                minWeight: 2000,
+                nodesToHighlight: nodesIds,
+                edgesToHighlight: edgesIds,
+              });
+            }}
+            id="entreteniemiento-heterogeneo"
+            currentId={config.id}
+          >
+            <p className="font-bold">Entreteniemiento heterogeneo</p>
             <p>
-              Por un lado, se nuclean{" "}
-              <span className="bg-red-500 p-0.5 px-2">Vorterix</span>,
-              <span className="bg-red-500 p-0.5 px-2">Luquitas</span>,
-              <span className="bg-red-500 p-0.5 px-2">El Método</span>,
-              <span className="bg-red-500 p-0.5 px-2">Paren la mano</span>,
-              <span className="bg-red-500 p-0.5 px-2">Neura Media</span>,
-              <span className="bg-red-500 p-0.5 px-2">Azzaro</span>. ¿Cómo puede
-              existir una comunidad tan heterogénea? Mera hipótesis: estos
-              canales funcionaron como puerta de entrada al formato para muchas
-              personas que llegaron en busca de entretenimiento. Además, sus
-              mismos creadores hacían cruces y se invitaban entre sí, provocando
-              migración cruzada de espectadores.
+              Sin mostrar color de cluster destacamos un grupo de canales en
+              particular mostrando toda conexión entre ellos sin importar el
+              peso
             </p>
-            <button
-              className={classes["card-button"]}
-              onClick={() => {
-                const { nodes } = props.data["2022"];
-                const highlight = [
-                  "@vorterixoficial",
-                  "@luquitasrodriguez",
-                  "@elmetodorebord",
-                  "@parenlamano",
-                  "@neuramedia",
-                  "@somosazz",
-                ];
-                setConfig((conf) => ({
-                  year: "2022" as YearKey,
-                  minWeight: 2000,
-                  nodesToHighlight: highlight,
-                  labelsToShow: highlight,
-                }));
-              }}
-            >
-              Click
-            </button>
-          </div>
+          </StepCard>
 
-          {/* Step 11 */}
-          <div className={classes["scrolly-card"]}>
+          <StepCard
+            onStep={(id) => {
+              const { nodes, edges } = props.data["2022"];
+              const group = [
+                "@somosgelatina",
+                "@paisdeboludos",
+                "@nicoguthmann",
+                "@220podcast",
+                "@somosmatear",
+              ];
+              const { nodesIds, edgesIds } = getSubNetwork(group, edges);
+              setConfig({
+                id,
+                year: "2022",
+                minWeight: 2000,
+                nodesToHighlight: nodesIds,
+                edgesToHighlight: edgesIds,
+              });
+            }}
+            id="tercera-comunidad"
+            currentId={config.id}
+          >
+            <p className="font-bold">
+              Tercera comunidad (progre, peronista, centroizquierda)
+            </p>
             <p>
-              Por otro lado, asistimos a la consolidación de una tercera
-              comunidad, muy politizada pero no-libertaria (¿progre? ¿peronista?
-              ¿de centroizquierda?) constituída principalmente por{" "}
-              <span className="bg-red-500 p-0.5 px-2">Gelatina</span>,{" "}
-              <span className="bg-red-500 p-0.5 px-2">País de boludos</span> y
-              <span className="bg-red-500 p-0.5 px-2">Nico Guthmann</span>. La
-              corren de atrás, pero corren muy rápido.
+              Sin mostrar color de cluster destacamos un grupo de canales en
+              particular mostrando toda conexión entre ellos sin importar el
+              peso
             </p>
-            <button
-              className={classes["card-button"]}
-              onClick={() => {
-                const { nodes } = props.data["2022"];
-                const highlight = [
-                  "@somosgelatina",
-                  "@paisdeboludos",
-                  "@nicoguthmann",
-                  "@220podcast",
-                  "@somosmatear",
-                ];
-                setConfig((conf) => ({
-                  year: "2022" as YearKey,
-                  minWeight: 2000,
-                  nodesToHighlight: highlight,
-                  labelsToShow: highlight,
-                }));
-              }}
-            >
-              Click
-            </button>
-          </div>
+          </StepCard>
 
-          <div className={classes["scrolly-card"]}>
-            <p className="font-bold">2023: Punto de quiebre</p>
+          <StepCard
+            onStep={(id) => {
+              const { nodes } = props.data["2023"];
+              setConfig({
+                id,
+                year: "2023",
+                minWeight: 2000,
+                nodesToHighlight: nodes.map((n) => n.handle),
+              });
+            }}
+            id="initial-2023"
+            currentId={config.id}
+          >
+            <p className="font-bold">2023: ¿No están entretenidos?</p>
             <p>
-              Finalmente, ocurre: el año de las elecciones presidenciales en
-              Argentina. La pandemia es cosa del pasado, ahora vamos a estar por
-              lo menos seis meses eligiendo entre dos posibilidades: consumir
-              toda la política que podemos, o tratar de consumir la menor
-              cantidad de política que podemos. A veces, llamativamente,
-              logramos hacer ambas a la vez. Todo el sistema parece más
-              integrado. Las comunidades mantienen cierto nivel de diálogo unas
-              con otras. Pero, también, los territorios están más claros:
+              Mostramos todos los canales y solo las aristas de más de 2000 para
+              el año 2023
             </p>
-            <button
-              className={classes["card-button"]}
-              onClick={() => {
-                const { nodes } = props.data["2023"];
-                setConfig((conf) => ({
-                  year: "2023" as YearKey,
-                  minWeight: 2000,
-                  nodesToHighlight: nodes.map((n) => n.handle),
-                }));
-              }}
-            >
-              Click
-            </button>
-          </div>
+            <p>Especificamos: año, minimo peso, nodos (entran todos)</p>
+          </StepCard>
 
-          <div className={classes["scrolly-card"]}>
+          <StepCard
+            onStep={(id) => {
+              setConfig({
+                id,
+                year: "2023",
+                minWeight: 2000,
+              });
+            }}
+            id="centrales-2023"
+            currentId={config.id}
+          >
+            <p className="font-bold">Los importantes del 2023</p>
+            <p>Especificamos: año, minimo peso (solo nodos con más 2000)</p>
+          </StepCard>
+
+          <StepCard
+            onStep={(id) => {
+              const { nodes, edges } = props.data["2023"];
+              const group = [
+                "@somosgelatina",
+                "@tomasrebord",
+                "@futurock",
+                "@incatube",
+                "@paisdeboludos",
+                "@cafekyoto",
+                "@pablobordaok",
+                "@rosendogrobostreams",
+                "@leylabechara",
+                "@elmetodorebord",
+                "@nicoguthmann",
+                "@220podcast",
+                "@somosmatear",
+                "@posdata_ar",
+                "@somosdelireo",
+              ];
+              const { nodesIds, edgesIds } = getSubNetwork(group, edges);
+              setConfig({
+                id,
+                year: "2023",
+                minWeight: 2000,
+                nodesToHighlight: nodesIds,
+                edgesToHighlight: edgesIds,
+              });
+            }}
+            id="afines-peronismo-clusterizados"
+            currentId={config.id}
+          >
+            <p className="font-bold">Peronismo y cercanos clusterizados</p>
             <p>
-              El peronismo en sus diversas expresiones (
-              <span className="bg-[#1f8df6] p-0.5 px-2">Gelatina</span>,{" "}
-              <span className="bg-[#1f8df6] p-0.5 px-2">Rebord</span>,{" "}
-              <span className="bg-[#1f8df6] p-0.5 px-2">Futurock</span>,{" "}
-              <span className="bg-[#1f8df6] p-0.5 px-2">La Inca</span>,
-              etcétera) se clusteriza con canales no peronistas pero afines
-              ideológicamente (como{" "}
-              <span className="bg-[#1f8df6] p-0.5 px-2">País de boludos</span>)
-              y otros más inesperados (como{" "}
-              <span className="bg-[#1f8df6] p-0.5 px-2">Café Kyoto</span>,{" "}
-              <span className="bg-[#1f8df6] p-0.5 px-2">Pablo Borda</span> o
-              <span className="bg-[#1f8df6] p-0.5 px-2">
-                Rosendo Grobcopatel
-              </span>
-              ). Son comunidades compatibles que se encuentran y, a los fines de
-              este análisis, se funden. Además, ocurre un fenómeno contenido en
-              un sólo canal, pero relevante para todo el ecosistema porque
-              repercute fuera de él: la fábrica de jingles salta del stream a la
-              tele y de ahí a la calle y a los bunkers de campaña. (Momento de
-              apreciación a este fenómeno cultural de ingenio colectivo y
-              tradición popular. Amigues, a sus plantas rendido este gatito)
+              Sin mostrar color de cluster destacamos un grupo de canales en
+              particular mostrando toda conexión entre ellos sin importar el
+              peso
             </p>
-            <button
-              className={classes["card-button"]}
-              onClick={() => {
-                const { nodes } = props.data["2023"];
-                const peronist = [
-                  "@somosgelatina",
-                  "@elmetodorebord",
-                  "@tomasrebord",
-                  "@futurock",
-                  "@incatube",
-                  "@cafekyoto",
-                  "@pablobordaok",
-                  "@rosendogrobostreams",
-                  "@paisdeboludos",
-                ];
-                const libertario = [
-                  "@breakpointmp",
-                  "@losherederosdealberdi",
-                  "@agustinlajeok",
-                  "@neuramedia",
-                  "@tipitoenojado",
-                  "@danannoficial",
-                ];
-                const highlight = [...peronist, ...libertario];
-                setConfig((conf) => ({
-                  year: "2023" as YearKey,
-                  minWeight: 2000,
-                  nodesToHighlight: highlight,
-                  clusters: [
-                    { id: "peronistas", nodes: peronist, color: "#1f8df6" },
-                    { id: "libertario", nodes: libertario, color: "#f2e227" },
-                  ],
-                }));
-              }}
-            >
-              Click
-            </button>
-          </div>
+          </StepCard>
 
-          <div className={classes["scrolly-card"]}>
+          <StepCard
+            onStep={(id) => {
+              const { nodes, edges } = props.data["2023"];
+              const group = [
+                "@olgaenvivo_",
+                "@luzutv",
+                "@luquitasrodriguez",
+                "@vorterixoficial",
+                "@somosazz",
+                "@parenlamano",
+                "@loftstream",
+              ];
+              const { nodesIds, edgesIds } = getSubNetwork(group, edges);
+              setConfig({
+                id,
+                year: "2023",
+                minWeight: 2000,
+                nodesToHighlight: nodesIds,
+                edgesToHighlight: edgesIds,
+              });
+            }}
+            id="entretenimiento-sin-rosca"
+            currentId={config.id}
+          >
+            <p className="font-bold">Entretenimiento sin rosca</p>
             <p>
-              Quienes no tienen ganas de rosquear se refugian en la comunidad
-              del entretenimiento:{" "}
-              <span className="bg-red-400 p-0.5 px-2">Olga</span>,{" "}
-              <span className="bg-red-400 p-0.5 px-2">Luzu</span> (que tiene la
-              mayor cantidad de views),{" "}
-              <span className="bg-red-400 p-0.5 px-2">Luquitas Rodríguez</span>,
-              <span className="bg-red-400 p-0.5 px-2">Vorterix</span> y{" "}
-              <span className="bg-red-400 p-0.5 px-2">Azzaro</span> concentran a
-              la mayoría de una comunidad que tiene ganas de hablar de otra
-              cosa.
+              Sin mostrar color de cluster destacamos un grupo de canales en
+              particular mostrando toda conexión entre ellos sin importar el
+              peso
             </p>
-            <button
-              className={classes["card-button"]}
-              onClick={() => {
-                const { nodes } = props.data["2023"];
-                const highlight = [
-                  "@olgaenvivo_",
-                  "@luzutv",
-                  "@luquitasrodriguez",
-                  "@vorterixoficial",
-                  "@somosazz",
-                ];
-                setConfig((conf) => ({
-                  year: "2023" as YearKey,
-                  minWeight: 2000,
-                  nodesToHighlight: highlight,
-                  clusters: [
-                    {
-                      id: "entretenimiento",
-                      nodes: highlight,
-                      color: "rgb(248 113 113)",
-                    },
-                  ],
-                }));
-              }}
-            >
-              Click
-            </button>
-          </div>
-
-          {/* Fin */}
+          </StepCard>
         </div>
       </div>
 
