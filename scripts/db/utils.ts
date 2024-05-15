@@ -34,7 +34,7 @@ function mapVideo(video: VideoItem) {
 
 export function mapComment(comment: CommentSnippet, video: VideoItem) {
   return {
-    id: `${comment.videoId}-${comment.authorChannelId}-${comment.publishedAt}`,
+    id: `${comment.videoId}-${comment.authorChannelId.value}-${comment.publishedAt}`,
     channelId: comment.channelId,
     videoId: comment.videoId,
     authorId: comment.authorChannelId.value,

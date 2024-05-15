@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = "postgresql://juanignaciocuiule@localhost:5432/canales-digitales-2024"
+  url      = "postgresql://juanignaciocuiule@localhost:5432/canales-digitales"
 }
 
 model Channel {

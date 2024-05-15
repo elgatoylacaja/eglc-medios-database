@@ -24,14 +24,9 @@ export const only_q1 = [
   "@UrbanaPlayFM",
 ].map((handle) => handle.toLowerCase());
 
-export const handles_to_exclude = [
-  ...only_q1,
-  "@ebeplay",
-  "@vorlytv",
-  "@factoria1251",
-  "@mostritv_",
-  "@lafabricapodcast_ok",
-].map((handle) => handle.toLowerCase());
+export const handles_to_exclude = [...only_q1].map((handle) =>
+  handle.toLowerCase()
+);
 
 export const ranges: Record<string, [Date, Date]> = {
   "2020": [
@@ -49,10 +44,6 @@ export const ranges: Record<string, [Date, Date]> = {
   "2023": [
     new Date(`2023-01-01T00:00:00.000Z`),
     new Date(`2024-01-01T00:00:00.000Z`),
-  ],
-  "2024Q1": [
-    new Date(`2024-01-01T00:00:00.000Z`),
-    new Date(`2024-04-01T00:00:00.000Z`),
   ],
   "2024": [
     new Date(`2024-01-01T00:00:00.000Z`),

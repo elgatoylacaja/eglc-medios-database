@@ -121,6 +121,5 @@ async function main(PERIOD: string) {
   await main("2021");
   await main("2022");
   await main("2023");
-  await main("2024Q1");
   await main("2024");
 })();

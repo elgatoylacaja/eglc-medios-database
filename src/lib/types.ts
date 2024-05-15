@@ -112,7 +112,7 @@ export type PlaylistResponse = {
   items: PlaylistItem[];
 };
 
-type VideoSnippet = {
+export type VideoSnippet = {
   publishedAt: string;
   channelId: string;
   title: string;
@@ -125,12 +125,12 @@ type VideoSnippet = {
   defaultLanguage: string;
 };
 
-type VideoContentDetails = {
+export type VideoContentDetails = {
   duration: string;
   dimension: string;
 };
 
-type VideoStatistics = {
+export type VideoStatistics = {
   viewCount: string;
   likeCount?: string;
   favoriteCount: string;

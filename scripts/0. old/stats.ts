@@ -38,11 +38,6 @@ async function getStats(range: [Date, Date]) {
         handle: {
           notIn: handles_to_exclude,
         },
-        videos: {
-          some: {
-            publishedAt,
-          },
-        },
         comments: {
           some: {
             publishedAt,
