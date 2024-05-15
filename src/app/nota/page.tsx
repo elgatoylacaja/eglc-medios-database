@@ -2,6 +2,7 @@ import { Channel } from "@prisma/client";
 import { UndirectedGraph } from "graphology";
 import { circular } from "graphology-layout";
 import forceAtlas2 from "graphology-layout-forceatlas2";
+import noverlap from "graphology-layout-noverlap";
 import { pagerank } from "graphology-metrics/centrality";
 import prisma from "../../lib/prisma";
 import { keys } from "../../lib/utils";
@@ -10,6 +11,7 @@ import {
   edgesUrlForYear,
   fetchTsv,
   nodesUrlForYear,
+  rScaleGenerator,
   years,
 } from "./common";
 import Interactive from "./Interactive";
@@ -18,8 +20,8 @@ import { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "La gente es maravillosa",
-  description: 'Pasado y presente de los nuevos medios digitales en Argentina'
-}
+  description: "Pasado y presente de los nuevos medios digitales en Argentina",
+};
 
 function createGraph(
   nodes: GraphNode[],
@@ -43,11 +45,25 @@ function createGraph(
 
   circular.assign(graph, { center: 0.5, scale: 10 });
 
-  const positions = forceAtlas2(graph, {
+  const forceAtlasPositions = forceAtlas2(graph, {
     iterations: 100,
     getEdgeWeight: "weight",
     settings: {
       scalingRatio: year === "2023" ? 0.15 : 0.65,
+    },
+  });
+
+  const rScale = rScaleGenerator(nodes, [30, 140]);
+
+  const positions = noverlap(graph, {
+    maxIterations: 50,
+    inputReducer: (key, attr) => {
+      const { x, y } = forceAtlasPositions[key];
+      return {
+        x,
+        y,
+        size: rScale(graph.getNodeAttribute(key, "pageRank")),
+      };
     },
   });
 

@@ -10,6 +10,8 @@ import {
   getNodeId,
   getNodeNetwork,
   numberToLabel,
+  rScaleGenerator,
+  wScaleGenerator,
 } from "./common";
 
 type Props = {
@@ -61,22 +63,9 @@ export default function Grafo(props: Props) {
   const { nodesToHighlight = getDefaultHighlight(nodes, edges, clusters) } =
     props;
 
-  const rScale = d3
-    .scaleLinear()
-    .domain([
-      Math.min(...nodes.map((_) => _.pageRank)),
-      Math.max(...nodes.map((_) => _.pageRank)),
-    ])
-    .range([30, 140]);
-
-  const wScale = d3
-    .scaleLinear()
-    .domain([
-      Math.min(...edges.map((_) => _.weight)),
-      Math.max(...edges.map((_) => _.weight)),
-    ])
-    .range([5, 50]);
-
+  const rScale = rScaleGenerator(nodes, [30, 140]);
+  const wScale = wScaleGenerator(edges, [5, 50]);
+  
   const highlightNodes = useCallback(
     (handles: string[] = nodesToHighlight) => {
       if (ref.current) {

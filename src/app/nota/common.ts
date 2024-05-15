@@ -1,4 +1,5 @@
 import { GraphCluster, GraphEdge, GraphNode } from "./types";
+import * as d3 from "d3";
 
 const baseUrl = "https://docs.google.com/spreadsheets/d/e/";
 const fileId =
@@ -104,3 +105,23 @@ export const getDefaultHighlight = (
 
   return Array.from(new Set([...fromEdges, ...fromClusters]));
 };
+
+export function rScaleGenerator(nodes: GraphNode[], range: [number, number]) {
+  return d3
+    .scaleLinear()
+    .domain([
+      Math.min(...nodes.map((_) => _.pageRank)),
+      Math.max(...nodes.map((_) => _.pageRank)),
+    ])
+    .range(range);
+}
+
+export function wScaleGenerator(edges: GraphEdge[], range: [number, number]) {
+  return d3
+    .scaleLinear()
+    .domain([
+      Math.min(...edges.map((_) => _.weight)),
+      Math.max(...edges.map((_) => _.weight)),
+    ])
+    .range(range);
+}

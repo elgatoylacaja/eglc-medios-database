@@ -8,6 +8,12 @@ import {
 } from "./types";
 import { Video as PrismaVideo } from "@prisma/client";
 
+export function keepUniqueBy<T>(fn: (x: T) => string, list: T[]) {
+  return list.filter((item, index, self) => {
+    return self.findIndex((i) => fn(i) === fn(item)) === index;
+  });
+}
+
 export function getThumbnail(thumbnails: VideoItem["snippet"]["thumbnails"]) {
   const options: ThumbnailKey[] = [
     "maxres",
@@ -179,4 +185,8 @@ export function videosToTsv(videos: PrismaVideo[]) {
   );
   const body = rows.map((row) => row.join("\t")).join("\n");
   return `${header}\n${body}`;
+}
+
+export function keys<T extends Record<string, any>>(obj: T) {
+  return Object.keys(obj) as (keyof T)[];
 }
