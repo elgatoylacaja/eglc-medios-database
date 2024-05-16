@@ -11,7 +11,7 @@ import {
   getNodeNetwork,
   numberToLabel,
   rScaleGenerator,
-  wScaleGenerator,
+  wScaleGenerator
 } from "./utils";
 
 type Props = {
@@ -77,6 +77,7 @@ export default function Grafo(props: Props) {
 
         svg
           .selectAll(nodesSelector)
+          .raise()
           .selectAll(".thumbnail")
           .classed(classes.nodeHide, false)
           .classed(classes.nodeHighlight, true);
@@ -105,6 +106,7 @@ export default function Grafo(props: Props) {
               ? ".edge"
               : ids.map((e) => `.edge#edge-${e}`).join(",")
           )
+          .raise()
           .classed(classes.edgeHide, false)
           .classed(classes.edgeHighlight, true);
       }
@@ -140,10 +142,10 @@ export default function Grafo(props: Props) {
   );
 
   const onNodeMouseOut = useCallback(() => {
-    hideNodes();
     hideEdges();
-    highlightNodes();
+    hideNodes();
     highlightEdges();
+    highlightNodes();
   }, [highlightNodes, highlightEdges, hideNodes, hideEdges]);
 
   const animateLines = useCallback(() => {
@@ -180,38 +182,34 @@ export default function Grafo(props: Props) {
   //   }
   // }, [ref, nodesToHighlight]);
 
+  // const { dx, dy, scale } = recenterPositions(positions);
+
   useEffect(() => {
     onNodeMouseOut();
     animateLines();
     // raiseNetwork();
   }, [onNodeMouseOut, animateLines]);
 
-  // const leftMost = Math.min(...Object.values(positions).map((_) => _.x));
-  // const topMost = Math.min(...Object.values(positions).map((_) => _.y));
-  // const rightMost = Math.max(...Object.values(positions).map((_) => _.x));
-  // const bottomMost = Math.max(...Object.values(positions).map((_) => _.y));
+  useEffect(() => {
+    const mouseOverEvent = (event: CustomEvent<{ handle: string }>) => {
+      onNodeMouseOver(event.detail.handle);
+    };
+    const mouseOutEvent = () => {
+      onNodeMouseOut();
+    };
 
-  // const boxWidth = rightMost - leftMost;
-  // const boxHeight = bottomMost - topMost;
+    // @ts-ignore
+    document.addEventListener("graphNodeMouseOver", mouseOverEvent);
+    // @ts-ignore
+    document.addEventListener("graphNodeMouseOut", mouseOutEvent);
 
-  // const dx = (2000 - boxWidth) / 2 - leftMost - 1000;
-  // const dy = (2000 - boxHeight) / 2 - topMost - 1000;
-
-  const zoomToNode = useCallback(
-    (handle: string) => {
-      if (ref.current) {
-        const { x, y } = positions[handle];
-        const svg = d3.select(ref.current);
-
-        svg
-          .select(".canvas")
-          .transition()
-          .duration(500)
-          .attr("transform", `scale(1.5) translate(${-x}, ${-y})`);
-      }
-    },
-    [ref, positions]
-  );
+    return () => {
+      // @ts-ignore
+      document.removeEventListener("graphNodeMouseOver", mouseOverEvent);
+      // @ts-ignore
+      document.removeEventListener("graphNodeMouseOut", mouseOutEvent);
+    };
+  }, [onNodeMouseOver, onNodeMouseOut]);
 
   return (
     <svg
@@ -223,18 +221,14 @@ export default function Grafo(props: Props) {
         className
       )}
     >
-      {/* <rect
-        x={leftMost}
-        y={topMost}
-        width={boxWidth}
-        height={boxHeight}
-        style={{
-          transform: `translate(${dx}px, ${dy}px)`,
-        }}
-        fill="gray"
-        fillOpacity={0.1}
-      ></rect> */}
-      <g className="canvas">
+      <g
+        className="canvas transition-transform"
+        style={
+          {
+            // transform: `translate(${dx}px, ${dy}px)`,
+          }
+        }
+      >
         {/* <g> */}
         {/* Edges */}
         {edges.map((edge) => {
@@ -293,7 +287,7 @@ export default function Grafo(props: Props) {
                   className="transition-colors"
                 />
                 <image
-                  href={node.thumbnail}
+                  href={`https://cdn.elgatoylacaja.com/analisis-medios-digitales/thumbnails/${node.handle}.jpg`}
                   clipPath="inset(0% round 100%)"
                   x={-imgR}
                   y={-imgR}

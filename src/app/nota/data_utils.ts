@@ -1,13 +1,13 @@
+import { Channel } from "@prisma/client";
 import { UndirectedGraph } from "graphology";
-import { YearKey, years } from "./common";
-import { BaseEdge, BaseNode, GraphData, GraphEdge, GraphNode } from "./types";
-import { pagerank } from "graphology-metrics/centrality";
 import { circular } from "graphology-layout";
 import forceAtlas2 from "graphology-layout-forceatlas2";
 import noverlap from "graphology-layout-noverlap";
-import { Channel } from "@prisma/client";
+import { pagerank } from "graphology-metrics/centrality";
 import prisma from "../../lib/prisma";
-import { rScaleGenerator, recenterPositions } from "./utils";
+import { YearKey, years } from "./common";
+import { BaseEdge, BaseNode, GraphData, GraphEdge, GraphNode } from "./types";
+import { rScaleGenerator, revalPositions } from "./utils";
 
 const baseUrl = "https://docs.google.com/spreadsheets/d/e/";
 const fileId =
@@ -52,12 +52,30 @@ function createGraph(
 ): GraphData {
   const graph = new UndirectedGraph<GraphNode, GraphEdge>();
 
-  nodes.forEach((node) => {
-    graph.addNode(node.handle, node);
-  });
-  edges.forEach((edge) => {
-    graph.addEdge(edge.source, edge.target, edge);
-  });
+  if (year === "2021") {
+    nodes
+      .filter((n) => n.handle !== "@rosendogrobostreams")
+      .forEach((node) => {
+        graph.addNode(node.handle, node);
+      });
+    edges
+      .filter((e) => {
+        return (
+          e.source !== "@rosendogrobostreams" &&
+          e.target !== "@rosendogrobostreams"
+        );
+      })
+      .forEach((edge) => {
+        graph.addEdge(edge.source, edge.target, edge);
+      });
+  } else {
+    nodes.forEach((node) => {
+      graph.addNode(node.handle, node);
+    });
+    edges.forEach((edge) => {
+      graph.addEdge(edge.source, edge.target, edge);
+    });
+  }
 
   pagerank.assign(graph, {
     alpha: 0.85,
@@ -69,7 +87,7 @@ function createGraph(
 
   const scalingRatio = {
     "2023": 0.15,
-    "2020": 0.9
+    "2020": 0.9,
   } as Partial<Record<YearKey, number>>;
 
   const forceAtlasPositions = forceAtlas2(graph, {
@@ -94,7 +112,7 @@ function createGraph(
     },
   });
 
-  const positions = recenterPositions(noverlapPositions);
+  const positions = revalPositions(noverlapPositions);
 
   const graphNodes = graph.nodes().map((n) => graph.getNodeAttributes(n));
   const graphEdges = graph.edges().map((e) => graph.getEdgeAttributes(e));

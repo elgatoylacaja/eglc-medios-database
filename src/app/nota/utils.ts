@@ -37,15 +37,45 @@ export const getSubNetwork = (handles: string[], edges: GraphEdge[]) => {
       handles.some((handle) => edge.target === handle)
   );
 
-  const nodesIds = Array.from(
-    new Set(nodeEdges.flatMap(({ source, target }) => [source, target]))
-  );
+  const nodesIds = handles;
 
   return { nodesIds, edgesIds: nodeEdges.map(getEdgeId) };
 };
 
 export const recenterPositions = (positions: Positions) => {
-  return positions;
+  const leftMost = Math.min(...Object.values(positions).map((_) => _.x));
+  const topMost = Math.min(...Object.values(positions).map((_) => _.y));
+  const rightMost = Math.max(...Object.values(positions).map((_) => _.x));
+  const bottomMost = Math.max(...Object.values(positions).map((_) => _.y));
+
+  const boxWidth = rightMost - leftMost;
+  const boxHeight = bottomMost - topMost;
+  const maxDimension = Math.max(boxWidth, boxHeight);
+
+  const dx = (2000 - boxWidth) / 2 - leftMost - 1000;
+  const dy = (2000 - boxHeight) / 2 - topMost - 1000;
+
+  const scale = (2000 / maxDimension) * 0.9;
+
+  return { dx, dy, scale };
+};
+
+export const revalPositions = (positions: Positions) => {
+  const leftMost = Math.min(...Object.values(positions).map((_) => _.x));
+  const topMost = Math.min(...Object.values(positions).map((_) => _.y));
+  const rightMost = Math.max(...Object.values(positions).map((_) => _.x));
+  const bottomMost = Math.max(...Object.values(positions).map((_) => _.y));
+
+  const boxWidth = rightMost - leftMost;
+  const boxHeight = bottomMost - topMost;
+  const maxDimension = Math.max(boxWidth, boxHeight);
+
+  const dx = (2000 - boxWidth) / 2 - leftMost - 1000;
+  const dy = (2000 - boxHeight) / 2 - topMost - 1000;
+
+  return Object.entries(positions).reduce((acc, [key, { x, y }]) => {
+    return { ...acc, [key]: { x: x + dx, y: y + dy } };
+  }, {} as Positions);
 };
 
 export const getDefaultHighlight = (
