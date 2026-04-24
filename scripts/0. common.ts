@@ -1,55 +1,18 @@
-export const only_q1 = [
-  "@c5n",
-  "@canal26",
-  "@cronicatv",
-  "@eltrece",
-  "@lanacion",
-  "@Radiomitre",
-  "@todonoticias",
-  "@TVPublicaArgentina",
-  "@A24com",
-  "@perfiltv",
-  "@ElDestapeTV",
-  "@ReFM107.3",
-  "@ElObservador107.9",
-  "@telefe",
-  "@elnueve",
-  "@Infobae",
-  "@IPNoticiasEnVivo",
-  "@metro951live",
-  "@popradio1015",
-  "@RadioConVos89.9",
-  "@fmrockandpop959",
-  "@nacionalrock937",
-  "@UrbanaPlayFM",
-].map((handle) => handle.toLowerCase());
+function buildRanges(years: number[]): Record<string, [Date, Date]> {
+  return years.reduce((acc, year) => {
+    return {
+      ...acc,
+      [year.toString()]: [
+        new Date(`${year}-01-01T00:00:00.000Z`),
+        new Date(`${year + 1}-01-01T00:00:00.000Z`),
+      ],
+    };
+  }, {});
+}
 
-export const handles_to_exclude = [...only_q1].map((handle) =>
-  handle.toLowerCase()
-);
-
-export const ranges: Record<string, [Date, Date]> = {
-  "2020": [
-    new Date(`2020-01-01T00:00:00.000Z`),
-    new Date(`2021-01-01T00:00:00.000Z`),
-  ],
-  "2021": [
-    new Date(`2021-01-01T00:00:00.000Z`),
-    new Date(`2022-01-01T00:00:00.000Z`),
-  ],
-  "2022": [
-    new Date(`2022-01-01T00:00:00.000Z`),
-    new Date(`2023-01-01T00:00:00.000Z`),
-  ],
-  "2023": [
-    new Date(`2023-01-01T00:00:00.000Z`),
-    new Date(`2024-01-01T00:00:00.000Z`),
-  ],
-  "2024": [
-    new Date(`2024-01-01T00:00:00.000Z`),
-    new Date(`2025-01-01T00:00:00.000Z`),
-  ],
-};
+export const ranges: Record<string, [Date, Date]> = buildRanges([
+  2019, 2020, 2021, 2022, 2023, 2024, 2025,
+]);
 
 export const nodes_base_columns = [
   "_id",

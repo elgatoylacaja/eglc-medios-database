@@ -8,7 +8,9 @@ import {
 } from "./types";
 import { oldestVideoInPlaylist } from "./utils";
 
-const BASE_URL = "https://yt.lemnoslife.com/noKey";
+// const BASE_URL = "https://yt.lemnoslife.com/noKey";
+// const BASE_URL = "http://localhost:8080";
+const BASE_URL = "https://www.googleapis.com/youtube/v3";
 
 type RequestLimit = {
   maxResults?: number;
@@ -23,7 +25,7 @@ export class YoutubeAPI {
     url: string,
     options?: RequestInit,
     retries: number = 10,
-    delay: number = 2000
+    delay: number = 2000,
   ): Promise<Response> {
     try {
       const response = await fetch(url, options);
@@ -46,7 +48,7 @@ export class YoutubeAPI {
 
   // https://developers.google.com/youtube/v3/docs/channels/list - $1
   fetchChannelData = async (
-    handle: string
+    handle: string,
   ): Promise<ChannelItem | undefined> => {
     try {
       const url = `${BASE_URL}/channels`;
@@ -59,10 +61,11 @@ export class YoutubeAPI {
           "brandingSettings",
         ].join(","),
         forHandle: handle,
+        key: process.env.YOUTUBE_API_KEY || "",
       });
 
       const response = (await this.fetchWithRetry(
-        `${url}?${params.toString()}`
+        `${url}?${params.toString()}`,
       ).then((res) => res.json())) as ChannelListResponse;
 
       return response.items[0];
@@ -77,7 +80,7 @@ export class YoutubeAPI {
     playlistId: string,
     limit: RequestLimit = {
       maxResults: 50,
-    }
+    },
   ): Promise<PlaylistItem[]> => {
     const url = `${BASE_URL}/playlistItems`;
 
@@ -93,10 +96,11 @@ export class YoutubeAPI {
         playlistId,
         maxResults: maxResults?.toString() || "50",
         ...(pageToken !== undefined ? { pageToken } : {}),
+        key: process.env.YOUTUBE_API_KEY || "",
       });
 
       const response = (await this.fetchWithRetry(
-        `${url}?${params.toString()}`
+        `${url}?${params.toString()}`,
       ).then((res) => res.json())) as PlaylistResponse;
 
       const { items = [], nextPageToken } = response;
@@ -137,9 +141,10 @@ export class YoutubeAPI {
     const params = new URLSearchParams({
       part: ["id", "snippet", "contentDetails", "statistics"].join(","),
       id: ids.join(","),
+      key: process.env.YOUTUBE_API_KEY || "",
     });
     const response = (await this.fetchWithRetry(
-      `${url}?${params.toString()}`
+      `${url}?${params.toString()}`,
     ).then((res) => res.json())) as VideoListResponse;
 
     return response.items;
@@ -150,7 +155,7 @@ export class YoutubeAPI {
     videoId: string,
     limit: RequestLimit = {
       maxResults: 100,
-    }
+    },
   ) => {
     const url = `${BASE_URL}/commentThreads`;
     const { maxResults = 100 } = limit;
@@ -161,16 +166,17 @@ export class YoutubeAPI {
         previous || {};
 
       const params = new URLSearchParams({
-        part: ["id", "snippet", "replies"].join(","),
+        part: ["snippet", "replies"].join(","),
         videoId,
         maxResults: "100",
         order: "time",
         ...(pageToken !== undefined ? { pageToken } : {}),
+        key: process.env.YOUTUBE_API_KEY || "",
       });
 
-      const response = (await this.fetchWithRetry(
-        `${url}?${params.toString()}`
-      ).then((res) => res.json())) as CommentListResponse;
+      const response = await this.fetchWithRetry(
+        `${url}?${params.toString()}`,
+      ).then((res) => res.json());
 
       const { items = [], nextPageToken } = response;
 

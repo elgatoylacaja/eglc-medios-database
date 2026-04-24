@@ -79,7 +79,7 @@ export function isoToSeconds(duration: string) {
 
 export function isShort(video: VideoItem) {
   const duration = isoToSeconds(video.contentDetails.duration);
-  return duration <= 61;
+  return duration <= 120;
 }
 
 export function isLiveOrScheduled(video: VideoItem) {
@@ -94,7 +94,7 @@ export function hasComments(video: VideoItem) {
 }
 
 export function isEligible(video: VideoItem) {
-  return !isLiveOrScheduled(video) && !isShort(video) && hasComments(video);
+  return !isLiveOrScheduled(video) && !isShort(video); // && hasComments(video);
 }
 
 export function secondsToString(seconds: number) {
@@ -113,14 +113,14 @@ export function flat<T>(_: T[]) {
 
 export function chunkArray<T>(array: T[], size: number) {
   return Array.from({ length: Math.ceil(array.length / size) }, (_, i) =>
-    array.slice(i * size, i * size + size)
+    array.slice(i * size, i * size + size),
   );
 }
 
 export function executeInChunks<T, U>(
   array: T[],
   size: number,
-  fn: (chunk: T[]) => U
+  fn: (chunk: T[]) => U,
 ) {
   return Promise.all(chunkArray(array, size).map(fn)).then(flat);
 }
@@ -128,10 +128,10 @@ export function executeInChunks<T, U>(
 export function executeSecuentiallyInChunks<T, U>(
   array: T[],
   size: number,
-  fn: (chunk: T[], ...x: any[]) => Promise<U>
+  fn: (chunk: T[], ...x: any[]) => Promise<U>,
 ) {
   return executeSequentially(
-    chunkArray(array, size).map((chunk, i) => () => fn(chunk, i))
+    chunkArray(array, size).map((chunk, i) => () => fn(chunk, i)),
   ).then(flat);
 }
 
@@ -156,7 +156,7 @@ export function normalizeItem(item: Item): Item {
       const condition = self.findIndex((v) => v.id === video.id) === index;
       if (!condition) {
         console.log(
-          `Video: ${video.id} of channel: ${item.channel.id} is duplicated. Skipping...`
+          `Video: ${video.id} of channel: ${item.channel.id} is duplicated. Skipping...`,
         );
       }
       return condition;
@@ -171,17 +171,17 @@ export function videosToJson(videos: PrismaVideo[]) {
       viewCount: parseInt(i.viewCount.toString()),
     })),
     null,
-    2
+    2,
   );
 }
 
 export function videosToTsv(videos: PrismaVideo[]) {
   const columns = Object.keys(videos[0]).filter(
-    (i) => i !== "description"
+    (i) => i !== "description",
   ) as (keyof PrismaVideo)[];
   const header = columns.join("\t");
   const rows = videos.map((video) =>
-    columns.map((column) => video[column].toString())
+    columns.map((column) => video[column].toString()),
   );
   const body = rows.map((row) => row.join("\t")).join("\n");
   return `${header}\n${body}`;

@@ -10,7 +10,6 @@ import {
   isEligible,
 } from "../src/lib/utils";
 import { YoutubeAPI } from "../src/lib/youtube";
-import { only_q1 } from "./0. common";
 
 const Config = {
   maxVideosResults: 6_000,
@@ -28,8 +27,8 @@ const logger = winston.createLogger({
   format: winston.format.combine(
     winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
     winston.format.printf(
-      ({ timestamp, level, message }) => `[${timestamp}] ${level}: ${message}`
-    )
+      ({ timestamp, level, message }) => `[${timestamp}] ${level}: ${message}`,
+    ),
   ),
   transports: [
     new winston.transports.Console(),
@@ -55,7 +54,7 @@ async function run() {
   let rows = argv.handle
     ? [{ Handle: argv.handle, Canal: argv.handle, Url: "" }]
     : await fetchFromSheets().then((rows) =>
-        rows.filter((row) => !files.includes(`${row.Handle}.json`))
+        rows.filter((row) => !files.includes(`${row.Handle}.json`)),
       );
 
   logger.info(`Fetched ${rows.length} rows from the sheet`);
@@ -81,39 +80,33 @@ async function processRow(row: SheetsRow) {
     }
 
     logger.info(
-      `[${row.Handle}] - Channel has ${channel.statistics.videoCount} videos in total`
+      `[${row.Handle}] - Channel has ${channel.statistics.videoCount} videos in total`,
     );
-
-    const timeRange = only_q1.includes(row.Handle.toLowerCase().trim())
-      ? {
-          start: "2024-01-01T00:00:00Z",
-          end: "2025-01-01T00:00:00Z",
-        }
-      : Config.timeRange;
-    // const timeRange = Config.timeRange;
 
     const playlistId = channel.contentDetails.relatedPlaylists.uploads;
     const playlistItems = await API.fetchPlaylistItems(playlistId, {
       maxResults: Config.maxVideosResults,
-      timeRange,
+      timeRange: Config.timeRange,
     });
     logger.info(`[${row.Handle}] - Found ${playlistItems.length} videos`);
 
     const ids = playlistItems.map((item) => item.snippet.resourceId.videoId);
 
-    const videos = (await executeVideosData(ids)).filter(isEligible);
+    const videos = (await executeVideosData(ids))
+      .filter(isEligible)
+      .map((video) => ({ ...video, comments: [] }));
     logger.info(`[${row.Handle}] - Found ${videos.length} eligible videos`);
 
-    const videosWithComments = await fetchCommentsForVideos(videos);
+    // const videosWithComments = await fetchCommentsForVideos(videos);
 
-    console.log(
-      `[${row.Handle}] - Found ${videosWithComments.reduce(
-        (acc, curr) => acc + curr.comments.length,
-        0
-      )} comments`
-    );
+    // console.log(
+    //   `[${row.Handle}] - Found ${videosWithComments.reduce(
+    //     (acc, curr) => acc + curr.comments.length,
+    //     0,
+    //   )} comments`,
+    // );
 
-    await saveData(row.Handle, { channel, videos: videosWithComments });
+    await saveData(row.Handle, { channel, videos });
   } catch (error) {
     console.log(error);
     logger.error(`[${row.Handle}] - Error processing row: ${error}`);
@@ -136,9 +129,9 @@ async function fetchCommentsForVideos(videos: VideoItem[]) {
           }).then((topComments) => ({
             ...video,
             comments: topComments.flatMap(flattenCommentItem),
-          }))
-        )
-      )
+          })),
+        ),
+      ),
   );
 }
 
@@ -151,7 +144,7 @@ async function saveData(handle: string, data: Item) {
       JSON.stringify(data),
       {
         encoding: "utf-8",
-      }
+      },
     ).then(() => {
       logger.info(`[${handle}] - Data saved`);
     });
@@ -159,7 +152,7 @@ async function saveData(handle: string, data: Item) {
     logger.error(`[${handle}] - Error saving data`);
     await writeFile(
       `./scripts/json/channels/${handle}.json`,
-      JSON.stringify({ channel, videos: [] })
+      JSON.stringify({ channel, videos: [] }),
     );
     logger.info(`[${handle}] - Channel data saved`);
     logger.info(`[${handle}] - Saving videos data`);
@@ -167,8 +160,8 @@ async function saveData(handle: string, data: Item) {
     await executeSecuentiallyInChunks(videos, 50, (chunk, i) =>
       writeFile(
         `./scripts/json/videos/${handle}/videos-${i}.json`,
-        JSON.stringify(chunk)
-      )
+        JSON.stringify(chunk),
+      ),
     );
     logger.info(`[${handle}] - Videos data saved`);
   }
