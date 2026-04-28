@@ -12,6 +12,18 @@ import { oldestVideoInPlaylist } from "./utils";
 // const BASE_URL = "http://localhost:8080";
 const BASE_URL = "https://www.googleapis.com/youtube/v3";
 
+type YtDlpComment = {
+  id: string;
+  text: string;
+  timestamp: number;
+  like_count?: number;
+  author: string;
+  author_id: string;
+  author_thumbnail?: string;
+  author_url?: string;
+  parent: string;
+};
+
 type RequestLimit = {
   maxResults?: number;
   timeRange?: {
