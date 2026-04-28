@@ -2,11 +2,16 @@ import {
   ChannelItem,
   ChannelListResponse,
   CommentListResponse,
+  CommentSnippet,
   PlaylistItem,
   PlaylistResponse,
   VideoListResponse,
 } from "./types";
 import { oldestVideoInPlaylist } from "./utils";
+import { exec } from "child_process";
+import { promisify } from "util";
+
+const execAsync = promisify(exec);
 
 // const BASE_URL = "https://yt.lemnoslife.com/noKey";
 // const BASE_URL = "http://localhost:8080";
@@ -210,5 +215,36 @@ export class YoutubeAPI {
     };
 
     return (await fetchComments()).items;
+  };
+
+  fetchVideoCommentsViaYtDlp = async (
+    videoId: string,
+    channelId: string,
+  ): Promise<CommentSnippet[]> => {
+    const url = `https://www.youtube.com/watch?v=${videoId}`;
+    const { stdout } = await execAsync(
+      `yt-dlp -j --write-comments "${url}"`,
+      { maxBuffer: 100 * 1024 * 1024 },
+    );
+
+    const data = JSON.parse(stdout) as { comments?: YtDlpComment[] };
+    const comments = data.comments ?? [];
+
+    return comments.map((comment) => ({
+      channelId,
+      videoId,
+      textDisplay: comment.text,
+      textOriginal: comment.text,
+      authorDisplayName: comment.author,
+      authorProfileImageUrl: comment.author_thumbnail ?? "",
+      authorChannelUrl: comment.author_url ?? "",
+      authorChannelId: { value: comment.author_id },
+      parentId: comment.parent !== "root" ? comment.parent : "",
+      canRate: true,
+      viewerRating: "none",
+      likeCount: comment.like_count ?? 0,
+      publishedAt: new Date((comment.timestamp ?? 0) * 1000).toISOString(),
+      updatedAt: new Date((comment.timestamp ?? 0) * 1000).toISOString(),
+    }));
   };
 }
