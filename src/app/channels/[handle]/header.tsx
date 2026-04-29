@@ -9,8 +9,8 @@ import {
   ThumbsUp,
 } from "react-feather";
 import { twMerge } from "tailwind-merge";
-import SearchBox from "./search-box";
 import DateRange from "./date-range";
+import SearchBox from "./search-box";
 
 type SortKey =
   | "uploaded"
@@ -44,7 +44,7 @@ export default async function Header(props: Props) {
     order = "desc",
     search = "",
     "date-start": dateStart = "2020-01-01T00:00:00.000Z",
-    "date-end": dateEnd = "2024-05-01T00:00:00.000Z",
+    "date-end": dateEnd = new Date().toISOString(),
   } = searchParams;
 
   const oppositeOrder = order === "asc" ? "desc" : "asc";

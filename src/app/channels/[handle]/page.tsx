@@ -2,7 +2,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { ArrowLeft } from "react-feather";
-import { twMerge } from "tailwind-merge";
 import ChannelCard from "../../../components/ChannelCard";
 import prisma from "../../../lib/prisma";
 import Header from "./header";
@@ -31,9 +30,6 @@ type Props = {
   searchParams: VideosSearchParams;
 };
 
-const className =
-  "flex justify-center items-center py-1 bg-black/5 w-fit rounded px-2 gap-1 text-xs transition-colors hover:bg-black/20";
-
 export default async function Page(initialProps: Props) {
   const {
     params: { handle },
@@ -43,7 +39,7 @@ export default async function Page(initialProps: Props) {
       page = "1",
       search = "",
       "date-start": dateStart = "2020-01-01T00:00:00.000Z",
-      "date-end": dateEnd = "2025-01-01T00:00:00.000Z",
+      "date-end": dateEnd = new Date().toISOString(),
     },
   } = initialProps;
 

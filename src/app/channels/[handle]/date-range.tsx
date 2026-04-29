@@ -7,7 +7,7 @@ import { twMerge } from "tailwind-merge";
 
 const timeRange = {
   min: "2020-01-01T00:00:00Z",
-  max: "2025-01-01T00:00:00Z",
+  max: new Date().toISOString(),
 };
 
 export default function DateRange() {
