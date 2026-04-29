@@ -1,3 +1,4 @@
+import { Video as PrismaVideo } from "@prisma/client";
 import { parse, toSeconds } from "iso8601-duration";
 import {
   Item,
@@ -6,7 +7,20 @@ import {
   TopLevelCommentItem,
   VideoItem,
 } from "./types";
-import { Video as PrismaVideo } from "@prisma/client";
+
+export function redactUrl(url: string) {
+  try {
+    const parsedUrl = new URL(url);
+    // removes the key from the query parameters
+    if (parsedUrl.searchParams.has("key")) {
+      parsedUrl.searchParams.set("key", "REDACTED");
+    }
+    return parsedUrl.toString();
+  } catch (error) {
+    console.error(`Error redacting URL: ${url}`, error);
+    return url; // return the original URL if parsing fails
+  }
+}
 
 export function keepUniqueBy<T>(fn: (x: T) => string, list: T[]) {
   return list.filter((item, index, self) => {
@@ -38,19 +52,14 @@ export function isDefined<T>(value: T | undefined): value is T {
   return value !== undefined;
 }
 
-export async function executeSequentially<T>(promises: (() => Promise<T>)[]) {
-  let sequence = Promise.resolve();
-  let results: T[] = [];
-
-  promises.forEach((promise) => {
-    sequence = sequence.then(() => {
-      return promise().then((result) => {
-        results.push(result);
-      });
-    });
-  });
-
-  return await sequence.then(() => results);
+export async function executeSequentially<T>(
+  fns: (() => Promise<T>)[],
+): Promise<T[]> {
+  const results: T[] = [];
+  for (const fn of fns) {
+    results.push(await fn());
+  }
+  return results;
 }
 
 export function oldestVideoInPlaylist(videos: PlaylistItem[]) {
@@ -79,7 +88,7 @@ export function isoToSeconds(duration: string) {
 
 export function isShort(video: VideoItem) {
   const duration = isoToSeconds(video.contentDetails.duration);
-  return duration <= 120;
+  return duration <= 180;
 }
 
 export function isLiveOrScheduled(video: VideoItem) {
@@ -94,7 +103,7 @@ export function hasComments(video: VideoItem) {
 }
 
 export function isEligible(video: VideoItem) {
-  return !isLiveOrScheduled(video) && !isShort(video); // && hasComments(video);
+  return !isLiveOrScheduled(video); // && !isShort(video) && hasComments(video);
 }
 
 export function secondsToString(seconds: number) {
@@ -107,32 +116,59 @@ export function secondsToString(seconds: number) {
     .padStart(2, "0")}:${ss.toString().padStart(2, "0")}`;
 }
 
-export function flat<T>(_: T[]) {
-  return _.flat();
-}
-
 export function chunkArray<T>(array: T[], size: number) {
   return Array.from({ length: Math.ceil(array.length / size) }, (_, i) =>
     array.slice(i * size, i * size + size),
   );
 }
 
-export function executeInChunks<T, U>(
+// For batch API calls: fn receives a whole chunk and returns an array of results.
+export async function executeSequentiallyInChunks<T, U>(
   array: T[],
   size: number,
-  fn: (chunk: T[]) => U,
-) {
-  return Promise.all(chunkArray(array, size).map(fn)).then(flat);
+  fn: (chunk: T[]) => Promise<U[]>,
+): Promise<U[]> {
+  const results: U[] = [];
+  for (const chunk of chunkArray(array, size)) {
+    results.push(...(await fn(chunk)));
+  }
+  return results;
 }
 
-export function executeSecuentiallyInChunks<T, U>(
-  array: T[],
-  size: number,
-  fn: (chunk: T[], ...x: any[]) => Promise<U>,
-) {
-  return executeSequentially(
-    chunkArray(array, size).map((chunk, i) => () => fn(chunk, i)),
-  ).then(flat);
+export type PoolProgress = {
+  completed: number;
+  total: number;
+  active: number;
+};
+
+// For per-item operations with controlled concurrency: keeps exactly `concurrency`
+// tasks running at all times — as soon as one finishes the next item starts.
+export async function mapWithConcurrency<T, U>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T) => Promise<U>,
+  onProgress?: (progress: PoolProgress) => void,
+): Promise<U[]> {
+  const results = new Array<U>(items.length);
+  const iter = items.entries();
+  let completed = 0;
+  let active = 0;
+
+  const worker = async () => {
+    for (const [i, item] of iter) {
+      active++;
+      results[i] = await fn(item);
+      active--;
+      completed++;
+      onProgress?.({ completed, total: items.length, active });
+    }
+  };
+
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, items.length) }, worker),
+  );
+
+  return results;
 }
 
 export function flattenCommentItem(item: TopLevelCommentItem) {

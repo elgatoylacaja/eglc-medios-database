@@ -1,7 +1,10 @@
-import prisma from "../src/lib/prisma"
-import fs from 'fs'
+import "dotenv/config";
+import prisma from "../src/lib/prisma";
+import fs from "fs";
+import { mkdir } from "fs/promises";
 
 async function main() {
+  await mkdir("./public/thumbnails", { recursive: true });
   const channels = await prisma.channel.findMany()
 
   // Download thumbnails to /public/thumbnails
@@ -10,7 +13,7 @@ async function main() {
   for (const channel of channels) {
     const thumbnail = channel.thumbnail
     const handle = channel.handle
-    const filename = `public/thumbnails/${handle}.jpg`
+    const filename = `./public/thumbnails/${handle}.jpg`
     
     const response = await fetch(thumbnail)
     const buffer = await response.arrayBuffer()

@@ -1,11 +1,13 @@
 import { Channel, PrismaClient } from "@prisma/client";
-import { appendFile, readdir, writeFile } from "fs/promises";
-import PQueue from "p-queue";
-import { executeSequentially, isDefined } from "../src/lib/utils";
+import { readdir, writeFile } from "fs/promises";
+import { createLogger } from "./logger";
+import { isDefined, mapWithConcurrency } from "../src/lib/utils";
 import { channelsWithComments, queryAuthorsInCommon } from "./db/utils";
 import { handles_to_exclude, nodes_base_columns, ranges } from "./0. common";
 
 const prisma = new PrismaClient();
+
+const logger = createLogger();
 
 type Config = {
   publishedAt: { lte: Date; gte: Date };
@@ -13,79 +15,73 @@ type Config = {
 };
 
 async function writeEdges(channels: Channel[], config: Config) {
-  const queue = new PQueue({ concurrency: 8 });
-
-  const edgesFileName = `${config.period}-edges.tsv`;
-  const edgesFileExists = await readdir("./scripts/exports").then((files) =>
-    files.includes(edgesFileName)
+  const fileName = `${config.period}-edges.tsv`;
+  const fileExists = await readdir("./scripts/exports").then((files) =>
+    files.includes(fileName),
   );
 
-  if (edgesFileExists) {
-    console.log(`Edges file already exists, skipping ...`);
+  if (fileExists) {
+    logger.info(`[${config.period}] - Edges file already exists, skipping`);
     return;
   }
-
-  await writeFile(
-    `./scripts/exports/${edgesFileName}`,
-    "Source\tTarget\tweight\n"
-  );
 
   const tuples = channels.flatMap((channelA) =>
     channels
       .map((channelB) =>
         channelA.handle >= channelB.handle
           ? undefined
-          : ([channelA, channelB] as [Channel, Channel])
+          : ([channelA, channelB] as [Channel, Channel]),
       )
-      .filter(isDefined)
+      .filter(isDefined),
   );
-  console.log(`Edges to process: ${tuples.length}`);
+  logger.info(`[${config.period}] - Processing ${tuples.length} channel pairs`);
 
-  for (const [channelA, channelB] of tuples) {
-    queue.add(async () => {
-      const authorsInCommon = await queryAuthorsInCommon(
+  const lines = await mapWithConcurrency(
+    tuples,
+    8,
+    async ([channelA, channelB]) => {
+      const weight = await queryAuthorsInCommon(
         channelA,
         channelB,
-        config.publishedAt
+        config.publishedAt,
       );
-      if (authorsInCommon > 0) {
-        console.log(
-          `Writing edge ${channelA.handle} - ${channelB.handle}:`,
-          authorsInCommon
-        );
-        await appendFile(
-          `./scripts/exports/${edgesFileName}`,
-          `${channelA.handle}\t${channelB.handle}\t${authorsInCommon}\n`
+      return weight > 0
+        ? `${channelA.handle}\t${channelB.handle}\t${weight}\n`
+        : null;
+    },
+    ({ completed, total, active }) => {
+      if (completed % 100 === 0 || completed === total) {
+        logger.info(
+          `[${config.period}] - Edges: ${completed}/${total} pairs checked, ${active} active`,
         );
       }
-    });
-  }
+    },
+  );
 
-  await queue.onIdle();
+  await writeFile(
+    `./scripts/exports/${fileName}`,
+    "Source\tTarget\tweight\n" + lines.filter(isDefined).join(""),
+  );
+  logger.info(`[${config.period}] - Edges file written`);
 }
 
 async function writeNodes(channels: Channel[], config: Config) {
   const fileName = `${config.period}-nodes.tsv`;
   const fileExists = await readdir("./scripts/exports").then((files) =>
-    files.includes(fileName)
+    files.includes(fileName),
   );
 
   if (fileExists) {
-    console.log(`Nodes file already exists, skipping ...`);
+    logger.info(`[${config.period}] - Nodes file already exists, skipping`);
     return;
   }
 
-  await writeFile(
-    `./scripts/exports/${fileName}`,
-    nodes_base_columns.join("\t") + "\n"
-  );
-
-  await executeSequentially(
-    channels.map((channel) => async () => {
+  const lines = await mapWithConcurrency(
+    channels,
+    4,
+    async (channel) => {
       const { id, name, handle, subscriberCount, publishedAt } = channel;
       const where = { channelId: id, publishedAt: config.publishedAt };
-
-      console.log(`Processing ${handle} ...`);
 
       const [videoCount, viewCount, commentCount, oldestVideo, authors] =
         await Promise.all([
@@ -114,7 +110,7 @@ async function writeNodes(channels: Channel[], config: Config) {
           }),
         ]);
 
-      const values = [
+      return [
         id,
         id,
         name,
@@ -127,49 +123,43 @@ async function writeNodes(channels: Channel[], config: Config) {
         authors,
         oldestVideo ? oldestVideo.publishedAt.toISOString() : "",
         publishedAt ? publishedAt.toISOString() : "",
-      ];
-
-      await appendFile(
-        `./scripts/exports/${fileName}`,
-        `${values.join("\t")}\n`
-      );
-    })
+      ].join("\t") + "\n";
+    },
+    ({ completed, total, active }) =>
+      logger.info(
+        `[${config.period}] - Nodes: ${completed}/${total} processed, ${active} active`,
+      ),
   );
+
+  await writeFile(
+    `./scripts/exports/${fileName}`,
+    nodes_base_columns.join("\t") + "\n" + lines.join(""),
+  );
+  logger.info(`[${config.period}] - Nodes file written`);
 }
 
 async function runForPeriod(
   period: string,
-  publishedAt: { lte: Date; gte: Date }
+  publishedAt: { lte: Date; gte: Date },
 ) {
-  console.log(`Processing period: ${period}`);
+  logger.info(`Processing period: ${period}`);
   const channelsRaw = await channelsWithComments(publishedAt);
-  console.log(`Channels with comments: ${channelsRaw.length}`);
+  logger.info(`[${period}] - Channels with comments: ${channelsRaw.length}`);
 
   const channels = channelsRaw.filter(
-    (channel) => !handles_to_exclude.includes(channel.handle.toLowerCase())
+    (channel) => !handles_to_exclude.includes(channel.handle.toLowerCase()),
   );
-  console.log(`Channels to process: ${channels.length}`);
+  logger.info(`[${period}] - Channels to process: ${channels.length}`);
 
   await writeNodes(channels, { period, publishedAt });
   await writeEdges(channels, { period, publishedAt });
 }
 
 async function main() {
-  const queue = new PQueue({ concurrency: 1 });
-
-  const periods = Object.entries(ranges).map(([period, [gte, lte]]) => ({
-    period,
-    publishedAt: { gte, lte },
-  }));
-
-  for (const { period, publishedAt } of periods) {
-    queue.add(async () => {
-      await runForPeriod(period, publishedAt);
-    });
+  for (const [period, [gte, lte]] of Object.entries(ranges)) {
+    await runForPeriod(period, { gte, lte });
   }
-
-  await queue.onIdle();
-  console.log("All tasks have been processed");
+  logger.info("All tasks have been processed");
 }
 
 main()
@@ -177,7 +167,7 @@ main()
     await prisma.$disconnect();
   })
   .catch(async (e) => {
-    console.error(e);
+    logger.error(e);
     await prisma.$disconnect();
     process.exit(1);
   });

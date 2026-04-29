@@ -11,7 +11,7 @@ function buildRanges(years: number[]): Record<string, [Date, Date]> {
 }
 
 export const ranges: Record<string, [Date, Date]> = buildRanges([
-  2019, 2020, 2021, 2022, 2023, 2024, 2025,
+  2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026,
 ]);
 
 export const nodes_base_columns = [
@@ -40,3 +40,5 @@ export const extra_columns = [
   "position_x",
   "position_y",
 ] as const;
+
+export const handles_to_exclude = [] as string[];

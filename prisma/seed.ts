@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import { readFile, readdir } from "fs/promises";
 import {
@@ -6,7 +7,7 @@ import {
   createVideos,
 } from "../scripts/db/utils";
 import { Item, VideoWithComments } from "../src/lib/types";
-import { executeSequentially, flat, normalizeItem } from "../src/lib/utils";
+import { executeSequentially, normalizeItem } from "../src/lib/utils";
 
 const prisma = new PrismaClient();
 
@@ -16,7 +17,7 @@ function isJson(file: string) {
 
 async function main() {
   const handles = await readdir("./scripts/json/channels").then((files) =>
-    files.filter(isJson).map((file) => file.replace(".json", ""))
+    files.filter(isJson).map((file) => file.replace(".json", "")),
   );
 
   await executeSequentially(
@@ -37,9 +38,9 @@ async function main() {
               files.filter(isJson).map((file) =>
                 readFile(`./scripts/json/videos/${handle}/${file}`, {
                   encoding: "utf-8",
-                }).then((data) => JSON.parse(data) as VideoWithComments[])
-              )
-            ).then(flat)
+                }).then((data) => JSON.parse(data) as VideoWithComments[]),
+              ),
+            ).then((r): VideoWithComments[] => r.flat()),
           )
           .catch((e) => {
             console.error(e);
@@ -50,17 +51,17 @@ async function main() {
         await executeSequentially(
           videos.map((video) => async () => {
             await createVideoComments(video);
-          })
+          }),
         );
       } else {
         await createVideos(channel.channel, channel.videos);
         await executeSequentially(
           channel.videos.map((video) => async () => {
             await createVideoComments(video);
-          })
+          }),
         );
       }
-    })
+    }),
   );
 
   console.log(`Seeding finished.`);

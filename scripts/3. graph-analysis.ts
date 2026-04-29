@@ -1,4 +1,4 @@
-import { appendFile, readFile, writeFile } from "fs/promises";
+import { readFile, writeFile } from "fs/promises";
 import Graph from "graphology";
 import louvain from "graphology-communities-louvain";
 import { pagerank } from "graphology-metrics/centrality";
@@ -7,54 +7,55 @@ import closenessCentrality from "graphology-metrics/centrality/closeness";
 import { eccentricity, weightedDegree } from "graphology-metrics/node";
 import forceAtlas2 from "graphology-layout-forceatlas2";
 import { circular } from "graphology-layout";
-import { extra_columns, nodes_base_columns } from "./0. common";
+import { createLogger } from "./logger";
+import { extra_columns, nodes_base_columns, ranges } from "./0. common";
 
 type Node = Record<(typeof nodes_base_columns)[number], string>;
 type Edge = Record<"weight", number>;
 
-async function loadGraph(PERIOD: string) {
-  console.log(`Loading graph for ${PERIOD} ...`);
+const logger = createLogger();
+
+async function loadGraph(period: string) {
+  logger.info(`[${period}] - Loading graph`);
   const graph = new Graph<Node, Edge>();
 
-  // Load nodes
   const nodes = await readFile(
-    `./scripts/exports/${PERIOD}-nodes.tsv`,
-    "utf-8"
+    `./scripts/exports/${period}-nodes.tsv`,
+    "utf-8",
   );
-
   nodes
     .split("\n")
     .slice(1)
+    .filter((line) => line.trim())
     .forEach((line) => {
-      if (line) {
-        const values = line.split("\t");
-        const node: Node = nodes_base_columns.reduce((acc, column, index) => {
-          return { ...acc, [column]: values[index] };
-        }, {} as Node);
-        graph.addNode(node.handle, node);
-      }
+      const values = line.split("\t");
+      const node: Node = nodes_base_columns.reduce((acc, column, index) => {
+        return { ...acc, [column]: values[index] };
+      }, {} as Node);
+      graph.addNode(node.handle, node);
     });
 
-  // Load edges
   const edges = await readFile(
-    `./scripts/exports/${PERIOD}-edges.tsv`,
-    "utf-8"
+    `./scripts/exports/${period}-edges.tsv`,
+    "utf-8",
   );
   edges
     .split("\n")
     .slice(1)
+    .filter((line) => line.trim())
     .forEach((line) => {
-      if (line) {
-        const [source, target, weight] = line.split("\t");
-        graph.addUndirectedEdge(source, target, { weight: parseInt(weight) });
-      }
+      const [source, target, weight] = line.split("\t");
+      graph.addUndirectedEdge(source, target, { weight: parseInt(weight) });
     });
 
+  logger.info(
+    `[${period}] - Loaded ${graph.order} nodes, ${graph.size} edges`,
+  );
   return graph;
 }
 
-async function main(PERIOD: string) {
-  const graph = await loadGraph(PERIOD);
+async function main(period: string) {
+  const graph = await loadGraph(period);
 
   const closeness_scores = closenessCentrality(graph);
   const betweenness_scores = betweennessCentrality(graph);
@@ -80,46 +81,38 @@ async function main(PERIOD: string) {
   });
 
   const fullColumns = [...nodes_base_columns, ...extra_columns] as const;
-  await writeFile(
-    `./scripts/exports/${PERIOD}-nodes-attributes.tsv`,
-    fullColumns.join("\t") + "\n"
-  );
 
-  const promises = graph.mapNodes((node, attr) => {
-    const w_degree = weightedDegree(graph, node);
-    const degree = graph.edges(node).length;
-    const e = eccentricity(graph, node);
+  const lines = graph.mapNodes((node, attr) => {
     const node_full: Record<(typeof fullColumns)[number], string | number> = {
       ...attr,
-      degree,
-      weightedDegree: w_degree, // int
-      eccentricity: e, // int
+      degree: graph.edges(node).length,
+      weightedDegree: weightedDegree(graph, node),
+      eccentricity: eccentricity(graph, node),
       closeness_centrality: closeness_scores[node].toString().replace(".", ","),
       betweenness_centrality: betweenness_scores[node]
         .toString()
         .replace(".", ","),
       page_rank: page_rank[node].toString().replace(".", ","),
-      class: communities.communities[node], // int
+      class: communities.communities[node],
       position_x: positions[node].x.toString().replace(".", ","),
       position_y: positions[node].y.toString().replace(".", ","),
     };
-
-    return () =>
-      appendFile(
-        `./scripts/exports/${PERIOD}-nodes-attributes.tsv`,
-        fullColumns.map((column) => node_full[column]).join("\t") + "\n"
-      );
+    return fullColumns.map((column) => node_full[column]).join("\t");
   });
 
-  for (const promise of promises) {
-    await promise();
-  }
+  await writeFile(
+    `./scripts/exports/${period}-nodes-attributes.tsv`,
+    fullColumns.join("\t") + "\n" + lines.join("\n") + "\n",
+  );
+  logger.info(`[${period}] - Attributes file written`);
 }
 
 (async () => {
-  await main("2020");
-  await main("2021");
-  await main("2022");
-  await main("2023");
-  await main("2024");
-})();
+  for (const period of Object.keys(ranges)) {
+    await main(period);
+  }
+  logger.info("All tasks have been processed");
+})().catch((e) => {
+  logger.error(e);
+  process.exit(1);
+});

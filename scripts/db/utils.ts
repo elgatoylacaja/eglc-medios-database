@@ -24,8 +24,7 @@ function mapVideo(video: VideoItem) {
     description,
     publishedAt,
     thumbnail: getThumbnail(thumbnails) || "",
-    duration: isoToSeconds(duration) || 0,
-
+    duration: duration ? isoToSeconds(duration) : 0,
     viewCount: parseInt(viewCount) || 0,
     likeCount: parseInt(likeCount || "") || 0,
     commentCount: parseInt(commentCount) || 0,
@@ -38,7 +37,6 @@ export function mapComment(comment: CommentSnippet, video: VideoItem) {
     channelId: comment.channelId,
     videoId: comment.videoId,
     authorId: comment.authorChannelId.value,
-
     text: comment.textDisplay,
     publishedAt: comment.publishedAt,
     videoPublishedAt: video.snippet.publishedAt,
@@ -53,8 +51,6 @@ export function mapAuthor(comment: CommentSnippet) {
     avatar: comment.authorProfileImageUrl,
   };
 }
-
-///
 
 export async function createChannel(item: Item) {
   const {
@@ -103,7 +99,7 @@ export async function createChannel(item: Item) {
 
 export async function createVideos(
   channel: Item["channel"],
-  videos: VideoItem[]
+  videos: VideoItem[],
 ) {
   await prisma.video
     .createMany({
@@ -113,7 +109,7 @@ export async function createVideos(
     .then((res) => {
       if (videos.length > 0) {
         console.log(
-          `Videos for channel: \t ${channel.snippet.customUrl} \t ${channel.id} created. ${res.count} videos created.`
+          `Videos for channel: \t ${channel.snippet.customUrl} \t ${channel.id} created. ${res.count} videos created.`,
         );
       }
     });
@@ -137,7 +133,7 @@ export async function createVideoComments(video: VideoWithComments) {
 export async function queryAuthorsInCommon(
   channelA: Channel,
   channelB: Channel,
-  publishedAt: { lte: Date; gte: Date }
+  publishedAt: { lte: Date; gte: Date },
 ) {
   const result = await prisma.author.count({
     where: {

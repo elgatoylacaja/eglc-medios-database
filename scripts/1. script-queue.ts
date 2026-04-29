@@ -1,71 +1,59 @@
+import "dotenv/config";
 import { mkdir, readdir, writeFile } from "fs/promises";
-import PQueue from "p-queue";
 import winston from "winston";
+import { createLogger } from "./logger";
 import yargs from "yargs";
 import { fetchFromSheets } from "../src/lib/sheets";
-import { Item, SheetsRow, VideoItem } from "../src/lib/types";
+import { Item, SheetsRow } from "../src/lib/types";
 import {
-  executeSecuentiallyInChunks,
-  flattenCommentItem,
+  chunkArray,
+  executeSequentiallyInChunks,
   isEligible,
+  mapWithConcurrency,
 } from "../src/lib/utils";
 import { YoutubeAPI } from "../src/lib/youtube";
 
 const Config = {
-  maxVideosResults: 6_000,
+  maxVideosResults: 100,
   maxCommentsResults: 100_000,
   timeRange: {
     start: "2020-01-01T00:00:00Z",
-    end: "2025-01-01T00:00:00Z",
+    end: "2027-01-01T00:00:00Z",
   },
-  videosToCommentsChunkSize: 1000,
+  videosDataChunkSize: 50, // This is the max number of videos that the YouTube API allows to fetch in a single request
+  videosToCommentsChunkSize: 5,
 };
 
-// Configure logger
-const logger = winston.createLogger({
-  level: "info",
-  format: winston.format.combine(
-    winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
-    winston.format.printf(
-      ({ timestamp, level, message }) => `[${timestamp}] ${level}: ${message}`,
-    ),
-  ),
-  transports: [
-    new winston.transports.Console(),
-    new winston.transports.File({
-      filename: `./scripts/logs/logfile-${new Date().getTime()}.log`,
-    }),
-  ],
-});
+const logger = createLogger([
+  new winston.transports.File({
+    filename: `./scripts/logs/logfile-${new Date().getTime()}.log`,
+  }),
+]);
 
-// Process command line arguments
-const argv = yargs(process.argv.slice(2)).option("handle", {
-  description: "Channel handle",
-  type: "string",
-  demandOption: false,
-}).argv as { handle?: string };
+const argv = yargs(process.argv.slice(2))
+  .option("handle", {
+    description: "Channel handle",
+    type: "string",
+    demandOption: false,
+  })
+  .parseSync();
 
-// Initialize YouTube API and task queue
 const API = new YoutubeAPI();
-const queue = new PQueue({ concurrency: 1 });
 
 async function run() {
   const files = await readdir("./scripts/json/channels");
-  let rows = argv.handle
+  const rows: SheetsRow[] = argv.handle
     ? [{ Handle: argv.handle, Canal: argv.handle, Url: "" }]
-    : await fetchFromSheets().then((rows) =>
-        rows.filter((row) => !files.includes(`${row.Handle}.json`)),
+    : (await fetchFromSheets()).filter(
+        (row) => !files.includes(`${row.Handle}.json`),
       );
 
   logger.info(`Fetched ${rows.length} rows from the sheet`);
 
   for (const row of rows) {
-    queue.add(async () => {
-      await processRow(row);
-    });
+    await processRow(row);
   }
 
-  await queue.onIdle();
   logger.info("All tasks have been processed");
 }
 
@@ -88,51 +76,47 @@ async function processRow(row: SheetsRow) {
       maxResults: Config.maxVideosResults,
       timeRange: Config.timeRange,
     });
-    logger.info(`[${row.Handle}] - Found ${playlistItems.length} videos`);
+
+    logger.info(
+      `[${row.Handle}] - Found ${playlistItems.length} videos in the uploads playlist`,
+    );
 
     const ids = playlistItems.map((item) => item.snippet.resourceId.videoId);
-
-    const videos = (await executeVideosData(ids))
+    const videos = (
+      await executeSequentiallyInChunks(
+        ids,
+        Config.videosDataChunkSize,
+        API.fetchVideosData,
+      )
+    )
       .filter(isEligible)
       .map((video) => ({ ...video, comments: [] }));
+
     logger.info(`[${row.Handle}] - Found ${videos.length} eligible videos`);
 
-    // const videosWithComments = await fetchCommentsForVideos(videos);
+    const videosWithComments = await mapWithConcurrency(
+      videos,
+      Config.videosToCommentsChunkSize,
+      (video) =>
+        API.fetchVideoCommentsViaYtDlp(video.id, channel.id).then(
+          (comments) => ({ ...video, comments }),
+        ),
+      ({ completed, total, active }) =>
+        logger.info(
+          `[${row.Handle}] - Comments: ${completed}/${total} done, ${active} active`,
+        ),
+    );
 
-    // console.log(
-    //   `[${row.Handle}] - Found ${videosWithComments.reduce(
-    //     (acc, curr) => acc + curr.comments.length,
-    //     0,
-    //   )} comments`,
-    // );
+    const totalComments = videosWithComments.reduce(
+      (acc, curr) => acc + curr.comments.length,
+      0,
+    );
+    logger.info(`[${row.Handle}] - Found ${totalComments} comments`);
 
-    await saveData(row.Handle, { channel, videos });
+    await saveData(row.Handle, { channel, videos: videosWithComments });
   } catch (error) {
-    console.log(error);
     logger.error(`[${row.Handle}] - Error processing row: ${error}`);
   }
-}
-
-async function executeVideosData(videoIds: string[]) {
-  return await executeSecuentiallyInChunks(videoIds, 50, API.fetchVideosData);
-}
-
-async function fetchCommentsForVideos(videos: VideoItem[]) {
-  return await executeSecuentiallyInChunks(
-    videos,
-    Config.videosToCommentsChunkSize,
-    async (videosChunk) =>
-      Promise.all(
-        videosChunk.map((video) =>
-          API.fetchVideoComments(video.id, {
-            maxResults: Config.maxCommentsResults,
-          }).then((topComments) => ({
-            ...video,
-            comments: topComments.flatMap(flattenCommentItem),
-          })),
-        ),
-      ),
-  );
 }
 
 async function saveData(handle: string, data: Item) {
@@ -142,31 +126,35 @@ async function saveData(handle: string, data: Item) {
     await writeFile(
       `./scripts/json/channels/${handle}.json`,
       JSON.stringify(data),
-      {
-        encoding: "utf-8",
-      },
-    ).then(() => {
-      logger.info(`[${handle}] - Data saved`);
-    });
+      { encoding: "utf-8" },
+    );
+    logger.info(`[${handle}] - Data saved`);
   } catch (error) {
-    logger.error(`[${handle}] - Error saving data`);
-    await writeFile(
-      `./scripts/json/channels/${handle}.json`,
-      JSON.stringify({ channel, videos: [] }),
-    );
-    logger.info(`[${handle}] - Channel data saved`);
-    logger.info(`[${handle}] - Saving videos data`);
-    mkdir(`./scripts/json/videos/${handle}`);
-    await executeSecuentiallyInChunks(videos, 50, (chunk, i) =>
-      writeFile(
-        `./scripts/json/videos/${handle}/videos-${i}.json`,
-        JSON.stringify(chunk),
-      ),
-    );
-    logger.info(`[${handle}] - Videos data saved`);
+    logger.error(`[${handle}] - Error saving full data: ${error}`);
+
+    try {
+      await writeFile(
+        `./scripts/json/channels/${handle}.json`,
+        JSON.stringify({ channel, videos: [] }),
+      );
+      logger.info(
+        `[${handle}] - Channel skeleton saved, writing videos separately`,
+      );
+
+      await mkdir(`./scripts/json/videos/${handle}`, { recursive: true });
+      const chunks = chunkArray(videos, 50);
+      for (let i = 0; i < chunks.length; i++) {
+        await writeFile(
+          `./scripts/json/videos/${handle}/videos-${i}.json`,
+          JSON.stringify(chunks[i]),
+        );
+      }
+      logger.info(`[${handle}] - Videos data saved`);
+    } catch (fallbackError) {
+      logger.error(`[${handle}] - Fallback save also failed: ${fallbackError}`);
+      throw fallbackError;
+    }
   }
-  // await writeFile(filePath, JSON.stringify(data), { encoding: "utf-8" });
-  // logger.info(`[${handle}] - Data saved to ${filePath}`);
 }
 
 run();

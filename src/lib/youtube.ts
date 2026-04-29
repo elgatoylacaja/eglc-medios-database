@@ -1,21 +1,18 @@
+import { execFile } from "child_process";
+import { promisify } from "util";
 import {
   ChannelItem,
   ChannelListResponse,
-  CommentListResponse,
   CommentSnippet,
   PlaylistItem,
-  PlaylistResponse,
-  VideoListResponse,
+  VideoListResponse
 } from "./types";
 import { oldestVideoInPlaylist } from "./utils";
-import { exec } from "child_process";
-import { promisify } from "util";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
-// const BASE_URL = "https://yt.lemnoslife.com/noKey";
-// const BASE_URL = "http://localhost:8080";
 const BASE_URL = "https://www.googleapis.com/youtube/v3";
+const YTDLP_ROOT_PARENT = "root";
 
 type YtDlpComment = {
   id: string;
@@ -37,131 +34,187 @@ type RequestLimit = {
   };
 };
 
+async function paginate<T>(
+  fetchPage: (
+    pageToken?: string,
+  ) => Promise<{ items: T[]; nextPageToken?: string }>,
+  shouldContinue: (accumulated: T[]) => boolean,
+): Promise<T[]> {
+  const accumulated: T[] = [];
+  let pageToken: string | undefined;
+
+  do {
+    const { items, nextPageToken } = await fetchPage(pageToken);
+    accumulated.push(...items);
+    pageToken = nextPageToken;
+  } while (pageToken !== undefined && shouldContinue(accumulated));
+
+  return accumulated;
+}
+
+async function fetchYtDlpComments(videoId: string): Promise<YtDlpComment[]> {
+  const { stdout } = await execFileAsync(
+    "yt-dlp",
+    ["-j", "--write-comments", `https://www.youtube.com/watch?v=${videoId}`],
+    { maxBuffer: 100 * 1024 * 1024 },
+  );
+  const data = JSON.parse(stdout) as { comments?: YtDlpComment[] };
+  return data.comments ?? [];
+}
+
+function mapYtDlpComment(
+  comment: YtDlpComment,
+  videoId: string,
+  channelId: string,
+): CommentSnippet {
+  const publishedAt = new Date((comment.timestamp ?? 0) * 1000).toISOString();
+  return {
+    channelId,
+    videoId,
+    textDisplay: comment.text,
+    textOriginal: comment.text,
+    authorDisplayName: comment.author,
+    authorProfileImageUrl: comment.author_thumbnail ?? "",
+    authorChannelUrl: comment.author_url ?? "",
+    authorChannelId: { value: comment.author_id },
+    parentId: comment.parent !== YTDLP_ROOT_PARENT ? comment.parent : "",
+    canRate: true,
+    viewerRating: "none",
+    likeCount: comment.like_count ?? 0,
+    publishedAt,
+    updatedAt: publishedAt, // yt-dlp does not expose edit timestamps
+  };
+}
+
 export class YoutubeAPI {
+  private readonly apiKey: string;
+
+  constructor() {
+    const key = process.env.YOUTUBE_API_KEY;
+    if (!key)
+      throw new Error("YOUTUBE_API_KEY environment variable is not set");
+    this.apiKey = key;
+  }
+
   private async fetchWithRetry(
     url: string,
     options?: RequestInit,
-    retries: number = 10,
-    delay: number = 2000,
+    retries = 10,
+    delay = 2000,
   ): Promise<Response> {
+    let response: Response;
+
     try {
-      const response = await fetch(url, options);
-      if (!response.ok) {
-        // or other logic to determine a failed request
-        throw new Error(`Request failed with status ${response.status}`);
-      }
-      return response;
-    } catch (error) {
-      if (retries > 1) {
-        console.log(`Retrying request ${retries - 1} attempts left`);
-        // console.log(`Retrying request to ${url}: ${retries - 1} attempts left`);
-        await new Promise((r) => setTimeout(r, delay));
-        return this.fetchWithRetry(url, options, retries - 1, delay);
-      } else {
-        throw error;
-      }
+      response = await fetch(url, options);
+    } catch (networkError) {
+      if (retries <= 1) throw networkError;
+      await new Promise((r) => setTimeout(r, delay));
+      return this.fetchWithRetry(
+        url,
+        options,
+        retries - 1,
+        Math.min(delay * 2, 30_000),
+      );
     }
+
+    if (response.ok) return response;
+
+    // 4xx errors are the caller's fault and won't resolve on retry
+    if (response.status >= 400 && response.status < 500) {
+      throw new Error(`Request failed with status ${response.status}`);
+    }
+
+    if (retries <= 1)
+      throw new Error(`Request failed with status ${response.status}`);
+
+    await new Promise((r) => setTimeout(r, delay));
+    return this.fetchWithRetry(
+      url,
+      options,
+      retries - 1,
+      Math.min(delay * 2, 30_000),
+    );
   }
 
   // https://developers.google.com/youtube/v3/docs/channels/list - $1
   fetchChannelData = async (
     handle: string,
   ): Promise<ChannelItem | undefined> => {
-    try {
-      const url = `${BASE_URL}/channels`;
-      const params = new URLSearchParams({
-        part: [
-          "id",
-          "snippet",
-          "contentDetails",
-          "statistics",
-          "brandingSettings",
-        ].join(","),
-        forHandle: handle,
-        key: process.env.YOUTUBE_API_KEY || "",
-      });
+    const params = new URLSearchParams({
+      part: [
+        "id",
+        "snippet",
+        "contentDetails",
+        "statistics",
+        "brandingSettings",
+      ].join(","),
+      forHandle: handle,
+      key: this.apiKey,
+    });
 
-      const response = (await this.fetchWithRetry(
-        `${url}?${params.toString()}`,
-      ).then((res) => res.json())) as ChannelListResponse;
+    const response = (await this.fetchWithRetry(
+      `${BASE_URL}/channels?${params}`,
+    ).then((res) => res.json())) as ChannelListResponse;
 
-      return response.items[0];
-    } catch (e) {
-      console.log(e);
-      console.log(`Error in fetchChannelData for channel ${handle}`);
-    }
+    return response.items?.[0];
   };
 
   // https://developers.google.com/youtube/v3/docs/playlistItems/list - $1
   fetchPlaylistItems = async (
     playlistId: string,
-    limit: RequestLimit = {
-      maxResults: 50,
-    },
+    limit: RequestLimit = { maxResults: 50 },
   ): Promise<PlaylistItem[]> => {
-    const url = `${BASE_URL}/playlistItems`;
-
     const { maxResults, timeRange } = limit;
 
-    type StepData = Pick<PlaylistResponse, "items" | "nextPageToken">;
-    const fetchPlaylist = async (previous?: StepData): Promise<StepData> => {
-      const { items: prevItems = [], nextPageToken: pageToken } =
-        previous || {};
-
-      const params = new URLSearchParams({
-        part: ["id", "snippet", "contentDetails"].join(","),
-        playlistId,
-        maxResults: maxResults?.toString() || "50",
-        ...(pageToken !== undefined ? { pageToken } : {}),
-        key: process.env.YOUTUBE_API_KEY || "",
-      });
-
-      const response = (await this.fetchWithRetry(
-        `${url}?${params.toString()}`,
-      ).then((res) => res.json())) as PlaylistResponse;
-
-      const { items = [], nextPageToken } = response;
-
-      const nextItems = [...prevItems, ...items];
-      const oldest = oldestVideoInPlaylist(nextItems);
-
-      const hasMore = nextPageToken !== undefined;
-      const sizeCondition =
-        maxResults !== undefined ? nextItems.length < maxResults : true;
-      const timeRangeCondition =
-        timeRange !== undefined
-          ? new Date(oldest.snippet.publishedAt) > new Date(timeRange.start)
-          : true;
-
-      const filterCondition = sizeCondition && timeRangeCondition;
-
-      const continueFetching = hasMore && filterCondition;
-
-      if (continueFetching) {
-        return await fetchPlaylist({
-          items: nextItems,
-          nextPageToken,
+    const items = await paginate<PlaylistItem>(
+      async (pageToken) => {
+        const params = new URLSearchParams({
+          part: ["id", "snippet", "contentDetails"].join(","),
+          playlistId,
+          maxResults: "50", // YouTube API maxResults per page is 50
+          ...(pageToken !== undefined ? { pageToken } : {}),
+          key: this.apiKey,
         });
-      } else {
+        const res = await this.fetchWithRetry(
+          `${BASE_URL}/playlistItems?${params}`,
+        );
+        const data = await res.json();
         return {
-          items: nextItems,
+          items: data.items ?? [],
+          nextPageToken: data.nextPageToken,
         };
-      }
-    };
+      },
+      (accumulated) => {
+        const withinSize =
+          maxResults === undefined || accumulated.length < maxResults;
+        const oldest = oldestVideoInPlaylist(accumulated);
+        const withinTimeRange =
+          timeRange === undefined ||
+          new Date(oldest.snippet.publishedAt) > new Date(timeRange.start);
+        return withinSize && withinTimeRange;
+      },
+    );
 
-    return (await fetchPlaylist()).items;
+    const filtered =
+      timeRange !== undefined
+        ? items.filter(
+            (item) =>
+              new Date(item.snippet.publishedAt) >= new Date(timeRange.start),
+          )
+        : items;
+
+    return maxResults !== undefined ? filtered.slice(0, maxResults) : filtered;
   };
 
   // https://developers.google.com/youtube/v3/docs/videos/list - $1
   fetchVideosData = async (ids: string[]) => {
-    const url = `${BASE_URL}/videos`;
     const params = new URLSearchParams({
       part: ["id", "snippet", "contentDetails", "statistics"].join(","),
       id: ids.join(","),
-      key: process.env.YOUTUBE_API_KEY || "",
+      key: this.apiKey,
     });
     const response = (await this.fetchWithRetry(
-      `${url}?${params.toString()}`,
+      `${BASE_URL}/videos?${params}`,
     ).then((res) => res.json())) as VideoListResponse;
 
     return response.items;
@@ -170,81 +223,40 @@ export class YoutubeAPI {
   // https://developers.google.com/youtube/v3/docs/commentThreads/list - $1
   fetchVideoComments = async (
     videoId: string,
-    limit: RequestLimit = {
-      maxResults: 100,
-    },
+    limit: RequestLimit = { maxResults: 100 },
   ) => {
-    const url = `${BASE_URL}/commentThreads`;
     const { maxResults = 100 } = limit;
 
-    type StepData = Pick<CommentListResponse, "items" | "nextPageToken">;
-    const fetchComments = async (previous?: StepData): Promise<StepData> => {
-      const { items: prevItems = [], nextPageToken: pageToken } =
-        previous || {};
-
-      const params = new URLSearchParams({
-        part: ["snippet", "replies"].join(","),
-        videoId,
-        maxResults: "100",
-        order: "time",
-        ...(pageToken !== undefined ? { pageToken } : {}),
-        key: process.env.YOUTUBE_API_KEY || "",
-      });
-
-      const response = await this.fetchWithRetry(
-        `${url}?${params.toString()}`,
-      ).then((res) => res.json());
-
-      const { items = [], nextPageToken } = response;
-
-      const nextItems = [...prevItems, ...items];
-
-      const continueFetching =
-        nextPageToken !== undefined && nextItems.length < maxResults;
-
-      if (continueFetching) {
-        return await fetchComments({
-          items: nextItems,
-          nextPageToken,
+    return paginate(
+      async (pageToken) => {
+        const params = new URLSearchParams({
+          part: ["snippet", "replies"].join(","),
+          videoId,
+          maxResults: "100",
+          order: "time",
+          ...(pageToken !== undefined ? { pageToken } : {}),
+          key: this.apiKey,
         });
-      } else {
+        const res = await this.fetchWithRetry(
+          `${BASE_URL}/commentThreads?${params}`,
+        );
+        const data = await res.json();
         return {
-          items: nextItems,
+          items: data.items ?? [],
+          nextPageToken: data.nextPageToken,
         };
-      }
-    };
-
-    return (await fetchComments()).items;
+      },
+      (accumulated) => accumulated.length < maxResults,
+    );
   };
 
   fetchVideoCommentsViaYtDlp = async (
     videoId: string,
     channelId: string,
   ): Promise<CommentSnippet[]> => {
-    const url = `https://www.youtube.com/watch?v=${videoId}`;
-    const { stdout } = await execAsync(
-      `yt-dlp -j --write-comments "${url}"`,
-      { maxBuffer: 100 * 1024 * 1024 },
+    const comments = await fetchYtDlpComments(videoId);
+    return comments.map((comment) =>
+      mapYtDlpComment(comment, videoId, channelId),
     );
-
-    const data = JSON.parse(stdout) as { comments?: YtDlpComment[] };
-    const comments = data.comments ?? [];
-
-    return comments.map((comment) => ({
-      channelId,
-      videoId,
-      textDisplay: comment.text,
-      textOriginal: comment.text,
-      authorDisplayName: comment.author,
-      authorProfileImageUrl: comment.author_thumbnail ?? "",
-      authorChannelUrl: comment.author_url ?? "",
-      authorChannelId: { value: comment.author_id },
-      parentId: comment.parent !== "root" ? comment.parent : "",
-      canRate: true,
-      viewerRating: "none",
-      likeCount: comment.like_count ?? 0,
-      publishedAt: new Date((comment.timestamp ?? 0) * 1000).toISOString(),
-      updatedAt: new Date((comment.timestamp ?? 0) * 1000).toISOString(),
-    }));
   };
 }

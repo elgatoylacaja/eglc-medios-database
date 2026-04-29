@@ -44,4 +44,8 @@ next-env.d.ts
 /scripts/exports/**/*.tsv
 /scripts/exports/**/*.zip
 
+/public/thumbnails/**/*.jpg
+/public/thumbnails/**/*.webp
+/public/thumbnails/**/*.png
+
 .env
