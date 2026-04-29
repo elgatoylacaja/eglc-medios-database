@@ -43,3 +43,5 @@ next-env.d.ts
 /scripts/exports/**/*.csv
 /scripts/exports/**/*.tsv
 /scripts/exports/**/*.zip
+
+.env
