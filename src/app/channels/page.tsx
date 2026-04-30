@@ -17,16 +17,15 @@ export default async function Page() {
           return (
             <Link
               href={`/channels/${channel.handle.replace("@", "")}`}
-              className={`flex gap-2 justify-start items-center hover:underline hover:text-blue-500 ${
-                handles_to_exclude.includes(channel.handle.toLowerCase())
-                  ? "bg-red-400/10"
-                  : ""
-              }`}
+              className={`flex gap-2 justify-start items-center hover:underline hover:text-blue-500 ${handles_to_exclude.includes(channel.handle.toLowerCase())
+                ? "bg-red-400/10"
+                : ""
+                }`}
               key={channel.id}
             >
               <img
                 className="w-8 h-8 rounded-full border border-black"
-                src={channel.thumbnail}
+                src={`/thumbnails/${channel.handle}.jpg`}
               />
               <div className="flex flex-col gap-0.5 leading-none">
                 <span>{channel.name}</span>

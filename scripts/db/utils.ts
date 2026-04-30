@@ -7,7 +7,7 @@ import {
 } from "../../src/lib/types";
 import { getThumbnail, isoToSeconds } from "../../src/lib/utils";
 
-const prisma = new PrismaClient();
+export const prisma = new PrismaClient();
 
 function mapVideo(video: VideoItem) {
   const {

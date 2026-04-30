@@ -14,21 +14,15 @@ importers:
       '@prisma/client':
         specifier: ^7.8.0
         version: 7.8.0(prisma@7.8.0(@types/react-dom@18.2.24)(@types/react@18.2.75)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)(typescript@5.9.3))(typescript@5.9.3)
-      '@react-sigma/core':
-        specifier: ^4.0.2
-        version: 4.0.3(graphology@0.25.4(graphology-types@0.24.8))(react@18.2.0)(sigma@3.0.2(graphology-types@0.24.8))
-      '@react-sigma/layout-core':
-        specifier: ^4.0.2
-        version: 4.0.3(graphology@0.25.4(graphology-types@0.24.8))(react@18.2.0)(sigma@3.0.2(graphology-types@0.24.8))
-      '@react-sigma/layout-forceatlas2':
-        specifier: ^4.0.2
-        version: 4.0.3(graphology-layout-forceatlas2@0.10.1(graphology-types@0.24.8))(graphology@0.25.4(graphology-types@0.24.8))(react@18.2.0)(sigma@3.0.2(graphology-types@0.24.8))
       '@types/d3':
         specifier: ^7.4.3
         version: 7.4.3
       d3:
         specifier: ^7.9.0
         version: 7.9.0
+      dotenv:
+        specifier: ^17.4.2
+        version: 17.4.2
       graphology:
         specifier: ^0.25.4
         version: 0.25.4(graphology-types@0.24.8)
@@ -59,9 +53,6 @@ importers:
       nuqs:
         specifier: ^1.17.1
         version: 1.20.0(next@16.2.4(react-dom@18.2.0(react@18.2.0))(react@18.2.0))
-      p-queue:
-        specifier: ^6.6.2
-        version: 6.6.2
       react:
         specifier: 18.2.0
         version: 18.2.0
@@ -74,12 +65,6 @@ importers:
       react-markdown:
         specifier: 9.0.1
         version: 9.0.1(@types/react@18.2.75)(react@18.2.0)(supports-color@9.4.0)
-      sigma:
-        specifier: ^3.0.0-beta.17
-        version: 3.0.2(graphology-types@0.24.8)
-      sonner:
-        specifier: ^1.4.41
-        version: 1.7.4(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
       supports-color:
         specifier: 9.4.0
         version: 9.4.0
@@ -539,21 +524,6 @@ packages:
     peerDependenciesMeta:
       '@types/react':
         optional: true
-
-  '@react-sigma/core@4.0.3':
-    resolution: {integrity: sha512-/y/U1GH18xjGYMWNYXXqHGJ+8tHf+e4z1i0gNSm9iuhch8sGFJooO3VfyPJlBox42Wl4/gCapQhOHAfVW0pRtw==}
-    peerDependencies:
-      graphology: ^0.25.4
-      react: ^18.0.0
-      sigma: ^3.0.0-beta.24
-
-  '@react-sigma/layout-core@4.0.3':
-    resolution: {integrity: sha512-0zt2JJw2Hjp/I8kn3RJgLR9M9u4SRSSlmp7XNuMqG4FLrHrL5MZ8nFhUMzMgNuxUn0rLtpdh7NDd8wgdhKeQjA==}
-
-  '@react-sigma/layout-forceatlas2@4.0.3':
-    resolution: {integrity: sha512-JpYmFetlV6Sn/uslsOpqtuWyaRADASyQ+fMkkUsh9iPG7Vm/srGwLOR33kUw31yt1gBiagp3vy+4EKjUxex1Uw==}
-    peerDependencies:
-      graphology-layout-forceatlas2: ^0.10.1
 
   '@so-ric/colorspace@1.1.6':
     resolution: {integrity: sha512-/KiKkpHNOBgkFJwu9sh48LkHSMYGyuTcSFK/qMBdnOAlrRJzRSXAOFB5qwzaVQuDl8wAvHVMkaASQDReTahxuw==}
@@ -1110,9 +1080,6 @@ packages:
   estree-util-is-identifier-name@3.0.0:
     resolution: {integrity: sha512-hFtqIDZTIUZ9BXLb8y4pYGyk6+wekIivNVTcmvk8NoOh+VeRn5y6cEHzbURrWbfp1fIqdVipilzj+lfaadNZmg==}
 
-  eventemitter3@4.0.7:
-    resolution: {integrity: sha512-8guHBZCwKnFhYdHr2ysuRWErTwhoN2X8XELRlrRwpmfeY2jjuUN4taQMsULKUVo1K4DvZl+0pgfyoysHxvmvEw==}
-
   events@3.3.0:
     resolution: {integrity: sha512-mQw+2fkQbALzQ7V0MY0IqdnXNOeTtP4r0lN9z7AAawCXgqea7bDii20AYrIBrFd/Hx0M2Ocz6S111CaFkUcb0Q==}
     engines: {node: '>=0.8.x'}
@@ -1559,18 +1526,6 @@ packages:
   one-time@1.0.0:
     resolution: {integrity: sha512-5DXOiRKwuSEcQ/l0kGCF6Q3jcADFv5tSmRaJck/OqkVFcOzutB134KRSfF0xDrL39MNnqxbHBbUUcjZIhTgb2g==}
 
-  p-finally@1.0.0:
-    resolution: {integrity: sha512-LICb2p9CB7FS+0eR1oqWnHhp0FljGLZCWBE9aix0Uye9W8LTQPwMTYVGWQWIw9RdQiDg4+epXQODwIYJtSJaow==}
-    engines: {node: '>=4'}
-
-  p-queue@6.6.2:
-    resolution: {integrity: sha512-RwFpb72c/BhQLEXIZ5K2e+AhgNVmIejGlTgiB9MzZ0e93GRvqZ7uSi0dvRF7/XIXDeNkra2fNHBxTyPDGySpjQ==}
-    engines: {node: '>=8'}
-
-  p-timeout@3.2.0:
-    resolution: {integrity: sha512-rhIwUycgwwKcP9yTOOFK/AKsAopjjCakVqLHePO3CC6Mir1Z99xT+R63jZxAT5lFZLa2inS5h+ZS2GvR99/FBg==}
-    engines: {node: '>=8'}
-
   pandemonium@2.4.1:
     resolution: {integrity: sha512-wRqjisUyiUfXowgm7MFH2rwJzKIr20rca5FsHXCMNm1W5YPP1hCtrZfgmQ62kP7OZ7Xt+cR858aB28lu5NX55g==}
 
@@ -1862,21 +1817,12 @@ packages:
     resolution: {integrity: sha512-7++dFhtcx3353uBaq8DDR4NuxBetBzC7ZQOhmTQInHEd6bSrXdiEyzCvG07Z44UYdLShWUyXt5M/yhz8ekcb1A==}
     engines: {node: '>=8'}
 
-  sigma@3.0.2:
-    resolution: {integrity: sha512-/BUbeOwPGruiBOm0YQQ6ZMcLIZ6tf/W+Jcm7dxZyAX0tK3WP9/sq7/NAWBxPIxVahdGjCJoGwej0Gdrv0DxlQQ==}
-
   signal-exit@3.0.7:
     resolution: {integrity: sha512-wnD2ZE+l+SPC/uoS0vXeE9L1+0wuaMqKlfz9AMUo38JsyLSBWSFcHR1Rri62LZc12vLr1gb3jl7iwQhgwpAbGQ==}
 
   signal-exit@4.1.0:
     resolution: {integrity: sha512-bzyZ1e88w9O1iNJbKnOlvYTrWPDl46O1bG0D3XInv+9tkPrxrN8jUUTiFlDkkmKWgn1M6CfIA13SuGqOa9Korw==}
     engines: {node: '>=14'}
-
-  sonner@1.7.4:
-    resolution: {integrity: sha512-DIS8z4PfJRbIyfVFDVnK9rO3eYDtse4Omcm6bt0oEr5/jtLgysmjuBl1frJ9E/EQZrFmKx2A8m/s5s9CRXIzhw==}
-    peerDependencies:
-      react: ^18.0.0 || ^19.0.0 || ^19.0.0-rc
-      react-dom: ^18.0.0 || ^19.0.0 || ^19.0.0-rc
 
   source-map-js@1.2.1:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
@@ -2441,29 +2387,6 @@ snapshots:
       react: 18.2.0
     optionalDependencies:
       '@types/react': 18.2.75
-
-  '@react-sigma/core@4.0.3(graphology@0.25.4(graphology-types@0.24.8))(react@18.2.0)(sigma@3.0.2(graphology-types@0.24.8))':
-    dependencies:
-      graphology: 0.25.4(graphology-types@0.24.8)
-      react: 18.2.0
-      sigma: 3.0.2(graphology-types@0.24.8)
-
-  '@react-sigma/layout-core@4.0.3(graphology@0.25.4(graphology-types@0.24.8))(react@18.2.0)(sigma@3.0.2(graphology-types@0.24.8))':
-    dependencies:
-      '@react-sigma/core': 4.0.3(graphology@0.25.4(graphology-types@0.24.8))(react@18.2.0)(sigma@3.0.2(graphology-types@0.24.8))
-    transitivePeerDependencies:
-      - graphology
-      - react
-      - sigma
-
-  '@react-sigma/layout-forceatlas2@4.0.3(graphology-layout-forceatlas2@0.10.1(graphology-types@0.24.8))(graphology@0.25.4(graphology-types@0.24.8))(react@18.2.0)(sigma@3.0.2(graphology-types@0.24.8))':
-    dependencies:
-      '@react-sigma/layout-core': 4.0.3(graphology@0.25.4(graphology-types@0.24.8))(react@18.2.0)(sigma@3.0.2(graphology-types@0.24.8))
-      graphology-layout-forceatlas2: 0.10.1(graphology-types@0.24.8)
-    transitivePeerDependencies:
-      - graphology
-      - react
-      - sigma
 
   '@so-ric/colorspace@1.1.6':
     dependencies:
@@ -3033,8 +2956,6 @@ snapshots:
 
   estree-util-is-identifier-name@3.0.0: {}
 
-  eventemitter3@4.0.7: {}
-
   events@3.3.0: {}
 
   exsolve@1.0.8: {}
@@ -3596,17 +3517,6 @@ snapshots:
     dependencies:
       fn.name: 1.1.0
 
-  p-finally@1.0.0: {}
-
-  p-queue@6.6.2:
-    dependencies:
-      eventemitter3: 4.0.7
-      p-timeout: 3.2.0
-
-  p-timeout@3.2.0:
-    dependencies:
-      p-finally: 1.0.0
-
   pandemonium@2.4.1:
     dependencies:
       mnemonist: 0.39.8
@@ -3922,21 +3832,9 @@ snapshots:
 
   shebang-regex@3.0.0: {}
 
-  sigma@3.0.2(graphology-types@0.24.8):
-    dependencies:
-      events: 3.3.0
-      graphology-utils: 2.5.2(graphology-types@0.24.8)
-    transitivePeerDependencies:
-      - graphology-types
-
   signal-exit@3.0.7: {}
 
   signal-exit@4.1.0: {}
-
-  sonner@1.7.4(react-dom@18.2.0(react@18.2.0))(react@18.2.0):
-    dependencies:
-      react: 18.2.0
-      react-dom: 18.2.0(react@18.2.0)
 
   source-map-js@1.2.1: {}
 

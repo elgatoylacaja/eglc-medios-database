@@ -1,5 +1,4 @@
 import { Montserrat, Overpass_Mono } from "next/font/google";
-import { Toaster } from "sonner";
 import "./globals.css";
 
 const montserrat = Montserrat({
@@ -27,7 +26,6 @@ export default async function RootLayout({
         >
           {children}
         </main>
-        <Toaster />
       </body>
     </html>
   );

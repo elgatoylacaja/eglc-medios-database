@@ -19,7 +19,7 @@ export const edgesUrlForYear = (year: YearKey) =>
 
 export function parse<T extends Record<string, string | number>>(
   data: string,
-  separator = "\t"
+  separator = "\t",
 ) {
   const lines = data.split("\n").filter((line) => line.trim().length > 0);
   const header = lines[0].split(separator) as (keyof T)[];
@@ -38,7 +38,7 @@ export function parse<T extends Record<string, string | number>>(
 }
 
 export function fetchTsv<T extends Record<string, string | number>>(
-  url: string
+  url: string,
 ) {
   return fetch(url)
     .then((response) => response.text())
@@ -48,7 +48,7 @@ export function fetchTsv<T extends Record<string, string | number>>(
 function createGraph(
   nodes: GraphNode[],
   edges: BaseEdge[],
-  year: YearKey
+  year: YearKey,
 ): GraphData {
   const graph = new UndirectedGraph<GraphNode, GraphEdge>();
 
@@ -66,6 +66,12 @@ function createGraph(
         );
       })
       .forEach((edge) => {
+        if (!graph.hasNode(edge.source) || !graph.hasNode(edge.target)) {
+          console.warn(
+            `Edge with source ${edge.source} and target ${edge.target} has invalid nodes. Skipping.`,
+          );
+          return;
+        }
         graph.addEdge(edge.source, edge.target, edge);
       });
   } else {
@@ -73,6 +79,12 @@ function createGraph(
       graph.addNode(node.handle, node);
     });
     edges.forEach((edge) => {
+      if (!graph.hasNode(edge.source) || !graph.hasNode(edge.target)) {
+        console.warn(
+          `Edge with source ${edge.source} and target ${edge.target} has invalid nodes. Skipping.`,
+        );
+        return;
+      }
       graph.addEdge(edge.source, edge.target, edge);
     });
   }
@@ -128,10 +140,10 @@ async function fetchData(year: YearKey) {
       ...n,
       viewCount: parseInt(n.viewCount.toString()),
       pageRank: 0,
-    }))
+    })),
   );
   const edges = await fetchTsv<BaseEdge>(edgesUrl).then((es) =>
-    es.map((e) => ({ ...e, weight: parseInt(e.weight.toString()) }))
+    es.map((e) => ({ ...e, weight: parseInt(e.weight.toString()) })),
   );
 
   const dbNodes: Channel[] = await prisma.channel.findMany({

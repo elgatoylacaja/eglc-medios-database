@@ -1,15 +1,13 @@
 import "dotenv/config";
-import { PrismaClient } from "@prisma/client";
 import { readFile, readdir } from "fs/promises";
 import {
   createChannel,
   createVideoComments,
   createVideos,
+  prisma,
 } from "../scripts/db/utils";
 import { Item, VideoWithComments } from "../src/lib/types";
 import { executeSequentially, normalizeItem } from "../src/lib/utils";
-
-const prisma = new PrismaClient();
 
 function isJson(file: string) {
   return file.endsWith(".json");

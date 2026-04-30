@@ -1,294 +1,150 @@
-# Fullstack Example with Next.js (REST API)
+# EGLC Medios Database
 
-This example shows how to implement a **fullstack app in TypeScript with [Next.js](https://nextjs.org/)** using [React](https://reactjs.org/) and [Prisma Client](https://www.prisma.io/docs/reference/tools-and-interfaces/prisma-client). It uses a SQLite database file with some initial dummy data which you can find at [`./prisma/dev.db`](./prisma/dev.db).
+A data pipeline and web interface for analyzing the Argentine YouTube media ecosystem, built for [El Gato y La Caja](https://elgatoylacaja.com).
 
-## Getting started
+The project tracks a curated list of YouTube channels, fetches their videos and comments, stores everything in PostgreSQL, and exposes a Next.js app to browse the data and visualize a network graph of channels connected by shared commenters.
 
-### 1. Download example and install dependencies
+## What it does
 
-Download this example:
+**Data ingestion** (scripts):
+1. Reads a list of channel handles from a Google Sheet
+2. Fetches channel metadata, videos, and comments via the YouTube Data API v3 and `yt-dlp`
+3. Saves raw data as JSON in `scripts/json/channels/`
+4. Loads JSON into PostgreSQL via Prisma
+5. Exports per-year `nodes.tsv` / `edges.tsv` files (channels as nodes, shared-commenter count as edge weight)
+6. Runs graph analysis to compute centrality metrics, PageRank, and Louvain community detection
 
-```
-npx try-prisma@latest --template typescript/rest-nextjs-api-routes
-```
+**Web app** (`src/app`):
+- `/channels` — list all tracked channels
+- `/channels/[handle]` — channel detail: videos with date range filter and search, downloadable as TSV
+- `/nota` — interactive network graph of the media ecosystem (Sigma.js + graphology)
 
-Install npm dependencies:
-
-```
-cd rest-nextjs-api-routes
-npm install
-```
-
-<details><summary><strong>Alternative:</strong> Clone the entire repo</summary>
-
-Clone this repository:
+## Data model
 
 ```
-git clone git@github.com:prisma/prisma-examples.git --depth=1
+Channel → Video → Comment ← Author
 ```
 
-Install npm dependencies:
+- `Channel`: YouTube channel metadata and aggregate stats
+- `Video`: per-video metadata, view/like/comment counts
+- `Comment`: individual top-level comments with author reference
+- `Author`: unique commenter identity across channels
 
-```
-cd prisma-examples/typescript/rest-nextjs-api-routes
-npm install
-```
+## Prerequisites
 
-</details>
+- Node.js 20+
+- PostgreSQL
+- A [YouTube Data API v3 key](https://developers.google.com/youtube/v3/getting-started)
+- [`yt-dlp`](https://github.com/yt-dlp/yt-dlp) installed and on `$PATH` (used to fetch comments)
 
-### 2. Create and seed the database
+## Setup
 
-Run the following command to create your SQLite database file. This also creates the `User` and `Post` tables that are defined in [`prisma/schema.prisma`](./prisma/schema.prisma):
+### 1. Install dependencies
 
-```
-npx prisma migrate dev --name init
-```
-
-When `npx prisma migrate dev` is executed against a newly created database, seeding is also triggered. The seed file in [`prisma/seed.ts`](./prisma/seed.ts) will be executed and your database will be populated with the sample data.
-
-
-### 3. Start the app
-
-```
-npm run dev
+```bash
+pnpm install
 ```
 
-The app is now running, navigate to [`http://localhost:3000/`](http://localhost:3000/) in your browser to explore its UI.
+### 2. Configure environment
 
-<details><summary>Expand for a tour through the UI of the app</summary>
+Create a `.env` file at the project root:
 
-<br />
-
-**Blog** (located in [`./pages/index.tsx`](./pages/index.tsx))
-
-![](https://imgur.com/eepbOUO.png)
-
-**Signup** (located in [`./pages/signup.tsx`](./pages/signup.tsx))
-
-![](https://imgur.com/iE6OaBI.png)
-
-**Create post (draft)** (located in [`./pages/create.tsx`](./pages/create.tsx))
-
-![](https://imgur.com/olCWRNv.png)
-
-**Drafts** (located in [`./pages/drafts.tsx`](./pages/drafts.tsx))
-
-![](https://imgur.com/PSMzhcd.png)
-
-**View post** (located in [`./pages/p/[id].tsx`](./pages/p/[id].tsx)) (delete or publish here)
-
-![](https://imgur.com/zS1B11O.png)
-
-</details>
-
-## Using the REST API
-
-You can also access the REST API of the API server directly. It is running on the same host machine and port and can be accessed via the `/api` route (in this case that is `localhost:3000/api/`, so you can e.g. reach the API with [`localhost:3000/api/feed`](http://localhost:3000/api/feed)).
-
-### `GET`
-
-- `/api/feed`: Fetch all _published_ posts
-- `/api/filterPosts?searchString={searchString}`: Filter posts by `title` or `content`
-
-### `POST`
-
-- `/api/post`: Create a new post
-  - Body:
-    - `title: String` (required): The title of the post
-    - `content: String` (optional): The content of the post
-    - `authorEmail: String` (required): The email of the user that creates the post
-- `/api/user`: Create a new user
-  - Body:
-    - `email: String` (required): The email address of the user
-    - `name: String` (optional): The name of the user
-
-### `PUT`
-
-- `/api/publish/:id`: Publish a post by its `id`
-
-### `DELETE`
-
-- `/api/post/:id`: Delete a post by its `id`
-
-## Evolving the app
-
-Evolving the application typically requires three steps:
-
-1. Migrate your database using Prisma Migrate
-1. Update your server-side application code
-1. Build new UI features in React
-
-For the following example scenario, assume you want to add a "profile" feature to the app where users can create a profile and write a short bio about themselves.
-
-### 1. Migrate your database using Prisma Migrate
-
-The first step is to add a new table, e.g. called `Profile`, to the database. You can do this by adding a new model to your [Prisma schema file](./prisma/schema.prisma) file and then running a migration afterwards:
-
-```diff
-// schema.prisma
-
-model Post {
-  id        Int     @default(autoincrement()) @id
-  title     String
-  content   String?
-  published Boolean @default(false)
-  author    User?   @relation(fields: [authorId], references: [id])
-  authorId  Int
-}
-
-model User {
-  id      Int      @default(autoincrement()) @id
-  name    String?
-  email   String   @unique
-  posts   Post[]
-+ profile Profile?
-}
-
-+model Profile {
-+  id     Int     @default(autoincrement()) @id
-+  bio    String?
-+  userId Int     @unique
-+  user   User    @relation(fields: [userId], references: [id])
-+}
+```env
+DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DATABASE"
+YOUTUBE_API_KEY="your_youtube_api_key"
 ```
 
-Once you've updated your data model, you can execute the changes against your database with the following command:
+### 3. Run database migrations and generate the client
 
-```
+```bash
 npx prisma migrate dev
+npx prisma generate
 ```
 
-### 2. Update your application code
+### 4. Start the web app
 
-You can now use your `PrismaClient` instance to perform operations against the new `Profile` table. Here are some examples:
-
-#### Create a new profile for an existing user
-
-```ts
-const profile = await prisma.profile.create({
-  data: {
-    bio: "Hello World",
-    user: {
-      connect: { email: "alice@prisma.io" },
-    },
-  },
-});
+```bash
+pnpm dev
 ```
 
-#### Create a new user with a new profile
+The app runs at [http://localhost:3000](http://localhost:3000).
 
-```ts
-const user = await prisma.user.create({
-  data: {
-    email: "john@prisma.io",
-    name: "John",
-    profile: {
-      create: {
-        bio: "Hello World",
-      },
-    },
-  },
-});
+## Running the data pipeline
+
+All scripts are run from the project root with `ts-node`.
+
+### Step 1 — Fetch channel + video + comment data
+
+Reads channel handles from the Google Sheet and fetches data for any not yet downloaded:
+
+```bash
+pnpm data:fetch
 ```
 
-#### Update the profile of an existing user
+To fetch a single channel by handle:
 
-```ts
-const userWithUpdatedProfile = await prisma.user.update({
-  where: { email: "alice@prisma.io" },
-  data: {
-    profile: {
-      update: {
-        bio: "Hello Friends",
-      },
-    },
-  },
-});
+```bash
+pnpm data:fetch -- --handle @somehandle
 ```
 
+Output is saved to `scripts/json/channels/<handle>.json`. Logs go to `scripts/logs/`.
 
-### 3. Build new UI features in React
+### Step 2 — Load JSON into the database
 
-Once you have added a new endpoint to the API (e.g. `/api/profile` with `/POST`, `/PUT` and `GET` operations), you can start building a new UI component in React. It could e.g. be called `profile.tsx` and would be located in the `pages` directory.
+Once JSON files are present in `scripts/json/channels/`, seed the database:
 
-In the application code, you can access the new endpoint via `fetch` operations and populate the UI with the data you receive from the API calls.
-
-
-## Switch to another database (e.g. PostgreSQL, MySQL, SQL Server, MongoDB)
-
-If you want to try this example with another database than SQLite, you can adjust the the database connection in [`prisma/schema.prisma`](./prisma/schema.prisma) by reconfiguring the `datasource` block.
-
-Learn more about the different connection configurations in the [docs](https://www.prisma.io/docs/reference/database-reference/connection-urls).
-
-<details><summary>Expand for an overview of example configurations with different databases</summary>
-
-### PostgreSQL
-
-For PostgreSQL, the connection URL has the following structure:
-
-```prisma
-datasource db {
-  provider = "postgresql"
-  url      = "postgresql://USER:PASSWORD@HOST:PORT/DATABASE?schema=SCHEMA"
-}
+```bash
+npx prisma db seed
 ```
 
-Here is an example connection string with a local PostgreSQL database:
+This runs `prisma/seed.ts`, which reads every `<handle>.json` file and upserts channels, videos, and comments into PostgreSQL. If a channel's data was too large to fit in a single file, it also looks for per-chunk video files under `scripts/json/videos/<handle>/`.
 
-```prisma
-datasource db {
-  provider = "postgresql"
-  url      = "postgresql://janedoe:mypassword@localhost:5432/notesapi?schema=public"
-}
+### Step 3 — Export nodes and edges per year
+
+Reads from the DB and writes TSV files to `scripts/exports/`:
+
+```bash
+pnpm data:export
 ```
 
-### MySQL
+### Step 4 — Graph analysis
 
-For MySQL, the connection URL has the following structure:
+Computes centrality metrics and community detection, updates node TSVs:
 
-```prisma
-datasource db {
-  provider = "mysql"
-  url      = "mysql://USER:PASSWORD@HOST:PORT/DATABASE"
-}
+```bash
+pnpm data:analyze
 ```
 
-Here is an example connection string with a local MySQL database:
+### Optional — Download thumbnails
 
-```prisma
-datasource db {
-  provider = "mysql"
-  url      = "mysql://janedoe:mypassword@localhost:3306/notesapi"
-}
+```bash
+pnpm data:thumbnails
 ```
 
-### Microsoft SQL Server
+## Project structure
 
-Here is an example connection string with a local Microsoft SQL Server database:
-
-```prisma
-datasource db {
-  provider = "sqlserver"
-  url      = "sqlserver://localhost:1433;initial catalog=sample;user=sa;password=mypassword;"
-}
+```
+├── prisma/             Prisma schema and migrations
+├── scripts/
+│   ├── 0. common.ts   Shared constants (year ranges, column names)
+│   ├── 1. script-queue.ts  Fetch YouTube data → JSON
+│   ├── 2. nodes-edges.ts   DB → TSV export
+│   ├── 3. graph-analysis.ts  Graph metrics
+│   ├── db/utils.ts     Prisma upsert helpers
+│   ├── json/           Raw fetched data (gitignored)
+│   └── exports/        TSV outputs for graph tools
+└── src/
+    ├── app/            Next.js App Router pages
+    ├── components/     Shared UI components
+    └── lib/            Prisma client, YouTube API wrapper, utilities
 ```
 
-### MongoDB
+## Tech stack
 
-Here is an example connection string with a local MongoDB database:
-
-```prisma
-datasource db {
-  provider = "mongodb"
-  url      = "mongodb://USERNAME:PASSWORD@HOST/DATABASE?authSource=admin&retryWrites=true&w=majority"
-}
-```
-
-</details>
-
-## Next steps
-
-- Check out the [Prisma docs](https://www.prisma.io/docs)
-- Share your feedback on the [Prisma Discord](https://pris.ly/discord/)
-- Create issues and ask questions on [GitHub](https://github.com/prisma/prisma/)
-
+- **Next.js** — web app
+- **Prisma** + **PostgreSQL** — data storage
+- **YouTube Data API v3** + **yt-dlp** — data sources
+- **Sigma.js** + **graphology** — network graph visualization
+- **D3** — scales and layout helpers
+- **Tailwind CSS** — styling
+- **Winston** — script logging

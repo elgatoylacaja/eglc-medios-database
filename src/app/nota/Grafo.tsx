@@ -287,7 +287,7 @@ export default function Grafo(props: Props) {
                   className="transition-colors"
                 />
                 <image
-                  href={`https://cdn.elgatoylacaja.com/analisis-medios-digitales/thumbnails/${node.handle}.jpg`}
+                  href={`/thumbnails/${node.handle}.jpg`}
                   clipPath="inset(0% round 100%)"
                   x={-imgR}
                   y={-imgR}

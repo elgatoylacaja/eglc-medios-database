@@ -26,22 +26,21 @@ export type VideosSearchParams = {
 };
 
 type Props = {
-  params: { handle: string };
-  searchParams: VideosSearchParams;
+  params: Promise<{ handle: string }>;
+  searchParams: Promise<VideosSearchParams>;
 };
 
 export default async function Page(initialProps: Props) {
+  const { handle } = await initialProps.params;
   const {
-    params: { handle },
-    searchParams: {
-      sortBy = "uploaded",
-      order = "desc",
-      page = "1",
-      search = "",
-      "date-start": dateStart = "2020-01-01T00:00:00.000Z",
-      "date-end": dateEnd = new Date().toISOString(),
-    },
-  } = initialProps;
+    sortBy = "uploaded",
+    order = "desc",
+    page = "1",
+    search = "",
+    "date-start": dateStart = "2020-01-01T00:00:00.000Z",
+    "date-end": dateEnd = new Date().toISOString(),
+  } = await initialProps.searchParams;
+
 
   const props = {
     params: { handle },

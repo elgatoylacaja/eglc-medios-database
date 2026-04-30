@@ -14,7 +14,7 @@ import {
 import { YoutubeAPI } from "../src/lib/youtube";
 
 const Config = {
-  maxVideosResults: 100,
+  maxVideosResults: 5,
   maxCommentsResults: 100_000,
   timeRange: {
     start: "2020-01-01T00:00:00Z",
