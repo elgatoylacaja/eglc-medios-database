@@ -1,12 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
-import prisma from "../../../../../lib/prisma";
-import { videosToJson, videosToTsv } from "../../../../../lib/utils";
+import prisma from "@/lib/prisma";
+import { videosToJson, videosToTsv } from "@/lib/utils";
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
 
   const sortBy = searchParams.get("sortBy") || "uploaded";
-  const order = searchParams.get("order") || "asc";
+  const order = (searchParams.get("order") === "desc" ? "desc" : "asc")
   const search = searchParams.get("search") || "";
   const handle = searchParams.get("handle") || "";
   const channelId = searchParams.get("channelId") || "";
@@ -31,10 +31,12 @@ export async function GET(request: NextRequest) {
     duration: { duration: order },
   } as const;
 
+  type SortKey = keyof typeof orderBy;
+  const key: SortKey = sortBy in orderBy ? (sortBy as SortKey) : "uploaded";
+
   const videos = await prisma.video.findMany({
     where,
-    // @ts-ignore
-    orderBy: orderBy[sortBy],
+    orderBy: orderBy[key],
   });
 
   const body = type === "json" ? videosToJson(videos) : videosToTsv(videos);

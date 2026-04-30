@@ -1,11 +1,10 @@
-import { Channel, PrismaClient } from "@prisma/client";
+import "dotenv/config";
+import { Channel } from "@prisma/client";
 import { readdir, writeFile } from "fs/promises";
 import { createLogger } from "./logger";
-import { isDefined, mapWithConcurrency } from "../src/lib/utils";
-import { channelsWithComments, queryAuthorsInCommon } from "./db/utils";
+import { isDefined, mapWithConcurrency } from "@/lib/utils";
+import { channelsWithComments, prisma, queryAuthorsInCommon } from "./db/utils";
 import { handles_to_exclude, nodes_base_columns, ranges } from "./0. common";
-
-const prisma = new PrismaClient();
 
 const logger = createLogger();
 
@@ -47,7 +46,7 @@ async function writeEdges(channels: Channel[], config: Config) {
       );
       return weight > 0
         ? `${channelA.handle}\t${channelB.handle}\t${weight}\n`
-        : null;
+        : undefined;
     },
     ({ completed, total, active }) => {
       if (completed % 100 === 0 || completed === total) {

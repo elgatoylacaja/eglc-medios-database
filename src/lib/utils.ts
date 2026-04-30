@@ -212,6 +212,7 @@ export function videosToJson(videos: PrismaVideo[]) {
 }
 
 export function videosToTsv(videos: PrismaVideo[]) {
+  if (videos.length === 0) return "";
   const columns = Object.keys(videos[0]).filter(
     (i) => i !== "description",
   ) as (keyof PrismaVideo)[];

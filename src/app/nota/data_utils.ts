@@ -4,7 +4,7 @@ import { circular } from "graphology-layout";
 import forceAtlas2 from "graphology-layout-forceatlas2";
 import noverlap from "graphology-layout-noverlap";
 import { pagerank } from "graphology-metrics/centrality";
-import prisma from "../../lib/prisma";
+import prisma from "@/lib/prisma";
 import { YearKey, years } from "./common";
 import { BaseEdge, BaseNode, GraphData, GraphEdge, GraphNode } from "./types";
 import { rScaleGenerator, revalPositions } from "./utils";

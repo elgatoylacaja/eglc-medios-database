@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { ArrowLeft, ArrowRight } from "react-feather";
 import { twMerge } from "tailwind-merge";
-import VideoCard from "../../../components/VideoCard";
-import VideoSkeleton from "../../../components/VideoSkeleton";
-import prisma from "../../../lib/prisma";
+import VideoCard from "@/components/VideoCard";
+import VideoSkeleton from "@/components/VideoSkeleton";
+import prisma from "@/lib/prisma";
 import { VideosSearchParams } from "./page";
 
 type Props = {

@@ -4,10 +4,12 @@ import {
   Item,
   VideoItem,
   VideoWithComments,
-} from "../../src/lib/types";
-import { getThumbnail, isoToSeconds } from "../../src/lib/utils";
+} from "@/lib/types";
+import { getThumbnail, isoToSeconds } from "@/lib/utils";
+import { createLogger } from "../logger";
 
 export const prisma = new PrismaClient();
+const logger = createLogger();
 
 function mapVideo(video: VideoItem) {
   const {
@@ -80,7 +82,7 @@ export async function createChannel(item: Item) {
     viewCount: parseInt(viewCount) || 0,
   };
 
-  console.log(`Creating channel with id: ${channelId}`);
+  logger.info(`[${channelId}] - Creating channel`);
   await prisma.channel
     .upsert({
       create: {
@@ -94,7 +96,7 @@ export async function createChannel(item: Item) {
         ...data,
       },
     })
-    .then(() => console.log(`Channel with id: ${channelId} created.`));
+    .then(() => logger.info(`[${channelId}] - Channel upserted`));
 }
 
 export async function createVideos(
@@ -108,8 +110,8 @@ export async function createVideos(
     })
     .then((res) => {
       if (videos.length > 0) {
-        console.log(
-          `Videos for channel: \t ${channel.snippet.customUrl} \t ${channel.id} created. ${res.count} videos created.`,
+        logger.info(
+          `[${channel.id}] - ${res.count} videos upserted`,
         );
       }
     });

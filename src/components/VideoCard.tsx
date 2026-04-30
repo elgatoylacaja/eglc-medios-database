@@ -2,7 +2,7 @@ import { Video } from "@prisma/client";
 import Link from "next/link";
 import { Calendar, Clock, Eye, MessageCircle, ThumbsUp } from "react-feather";
 import { twMerge } from "tailwind-merge";
-import { secondsToString } from "../lib/utils";
+import { secondsToString } from "@/lib/utils";
 
 export default function VideoCard(props: { video: Video; className?: string }) {
   const { video, className } = props;

@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { handles_to_exclude } from "../../../scripts/0. common";
-import prisma from "../../lib/prisma";
+import { handles_to_exclude } from "@scripts/0. common";
+import prisma from "@/lib/prisma";
 
 export default async function Page() {
   const channels = await prisma.channel.findMany();

@@ -1,4 +1,5 @@
 import { Montserrat, Overpass_Mono } from "next/font/google";
+import { NuqsAdapter } from "nuqs/adapters/next/app";
 import "./globals.css";
 
 const montserrat = Montserrat({
@@ -21,11 +22,13 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body>
-        <main
-          className={`${montserrat.variable} ${overpass_mono.variable} font-sans min-h-dvh`}
-        >
-          {children}
-        </main>
+        <NuqsAdapter>
+          <main
+            className={`${montserrat.variable} ${overpass_mono.variable} font-sans min-h-dvh`}
+          >
+            {children}
+          </main>
+        </NuqsAdapter>
       </body>
     </html>
   );

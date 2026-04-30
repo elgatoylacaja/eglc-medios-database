@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { keys } from "../../lib/utils";
+import { keys } from "@/lib/utils";
 import Interactive from "./Interactive";
 import { YearKey, years } from "./common";
 import { fetchYear } from "./data_utils";

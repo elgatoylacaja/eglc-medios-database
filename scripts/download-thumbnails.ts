@@ -1,5 +1,5 @@
 import "dotenv/config";
-import prisma from "../src/lib/prisma";
+import { prisma } from "./db/utils";
 import fs from "fs";
 import { mkdir } from "fs/promises";
 

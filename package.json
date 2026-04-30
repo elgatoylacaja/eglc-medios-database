@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "data:fetch": "ts-node \"scripts/1. script-queue.ts\"",
     "data:export": "ts-node \"scripts/2. nodes-edges.ts\"",
     "data:analyze": "ts-node \"scripts/3. graph-analysis.ts\"",
@@ -27,12 +29,11 @@
     "graphology-types": "^0.24.7",
     "iso8601-duration": "^2.1.2",
     "next": "^16.2.4",
-    "nuqs": "^1.17.1",
+    "nuqs": "^2.8.9",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "react-feather": "^2.0.10",
     "react-markdown": "9.0.1",
-    "supports-color": "9.4.0",
     "tailwind-merge": "^2.2.2",
     "winston": "^3.13.0",
     "yargs": "^17.7.2"
@@ -47,7 +48,9 @@
     "prisma": "^7.8.0",
     "tailwindcss": "^3.4.3",
     "ts-node": "^10.9.2",
-    "typescript": "^5.4.5"
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.4.5",
+    "vitest": "^4.1.5"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

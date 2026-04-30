@@ -3,15 +3,15 @@ import { mkdir, readdir, writeFile } from "fs/promises";
 import winston from "winston";
 import { createLogger } from "./logger";
 import yargs from "yargs";
-import { fetchFromSheets } from "../src/lib/sheets";
-import { Item, SheetsRow } from "../src/lib/types";
+import { fetchFromSheets } from "@/lib/sheets";
+import { Item, SheetsRow } from "@/lib/types";
 import {
   chunkArray,
   executeSequentiallyInChunks,
   isEligible,
   mapWithConcurrency,
-} from "../src/lib/utils";
-import { YoutubeAPI } from "../src/lib/youtube";
+} from "@/lib/utils";
+import { YoutubeAPI } from "@/lib/youtube";
 
 const Config = {
   maxVideosResults: 5,

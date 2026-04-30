@@ -2,8 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { ArrowLeft } from "react-feather";
-import ChannelCard from "../../../components/ChannelCard";
-import prisma from "../../../lib/prisma";
+import ChannelCard from "@/components/ChannelCard";
+import prisma from "@/lib/prisma";
 import Header from "./header";
 import Videos, { VideosSkeleton } from "./videos";
 

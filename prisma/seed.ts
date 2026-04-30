@@ -5,9 +5,9 @@ import {
   createVideoComments,
   createVideos,
   prisma,
-} from "../scripts/db/utils";
-import { Item, VideoWithComments } from "../src/lib/types";
-import { executeSequentially, normalizeItem } from "../src/lib/utils";
+} from "@scripts/db/utils";
+import { Item, VideoWithComments } from "@/lib/types";
+import { executeSequentially, normalizeItem } from "@/lib/utils";
 
 function isJson(file: string) {
   return file.endsWith(".json");

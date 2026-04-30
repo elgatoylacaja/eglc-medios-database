@@ -1,7 +1,7 @@
 import { Channel } from "@prisma/client";
 import { Calendar, MessageCircle, User, Video } from "react-feather";
 import { twMerge } from "tailwind-merge";
-import prisma from "../lib/prisma";
+import prisma from "@/lib/prisma";
 
 export default async function ChannelCard(props: {
   channel: Channel;
