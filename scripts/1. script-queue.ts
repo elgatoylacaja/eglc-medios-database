@@ -4,9 +4,8 @@ import winston from "winston";
 import { createLogger } from "./logger";
 import yargs from "yargs";
 import { fetchFromSheets } from "@/lib/sheets";
-import { Item, SheetsRow } from "@/lib/types";
+import { ChannelItem, SheetsRow, VideoWithComments } from "@/lib/types";
 import {
-  chunkArray,
   executeSequentiallyInChunks,
   isEligible,
   mapWithConcurrency,
@@ -14,14 +13,14 @@ import {
 import { YoutubeAPI } from "@/lib/youtube";
 
 const Config = {
-  maxVideosResults: 5,
+  maxVideosResults: 10_000,
   maxCommentsResults: 100_000,
   timeRange: {
     start: "2020-01-01T00:00:00Z",
     end: "2027-01-01T00:00:00Z",
   },
   videosDataChunkSize: 50, // This is the max number of videos that the YouTube API allows to fetch in a single request
-  videosToCommentsChunkSize: 5,
+  videosToCommentsChunkSize: 10,
 };
 
 const logger = createLogger([
@@ -40,13 +39,20 @@ const argv = yargs(process.argv.slice(2))
 
 const API = new YoutubeAPI();
 
+async function getExistingChannelHandles(): Promise<Set<string>> {
+  try {
+    const files = await readdir("./scripts/json/channels");
+    return new Set(files.filter((f) => f.endsWith(".json")).map((f) => f.replace(".json", "")));
+  } catch {
+    return new Set();
+  }
+}
+
 async function run() {
-  const files = await readdir("./scripts/json/channels");
+  const existingHandles = await getExistingChannelHandles();
   const rows: SheetsRow[] = argv.handle
     ? [{ Handle: argv.handle, Canal: argv.handle, Url: "" }]
-    : (await fetchFromSheets()).filter(
-        (row) => !files.includes(`${row.Handle}.json`),
-      );
+    : (await fetchFromSheets()).filter((row) => !existingHandles.has(row.Handle));
 
   logger.info(`Fetched ${rows.length} rows from the sheet`);
 
@@ -55,6 +61,15 @@ async function run() {
   }
 
   logger.info("All tasks have been processed");
+}
+
+async function getExistingVideoIds(handle: string): Promise<Set<string>> {
+  try {
+    const files = await readdir(`./scripts/json/videos/${handle}`);
+    return new Set(files.filter((f) => f.endsWith(".json")).map((f) => f.replace(".json", "")));
+  } catch {
+    return new Set();
+  }
 }
 
 async function processRow(row: SheetsRow) {
@@ -94,67 +109,48 @@ async function processRow(row: SheetsRow) {
 
     logger.info(`[${row.Handle}] - Found ${videos.length} eligible videos`);
 
-    const videosWithComments = await mapWithConcurrency(
-      videos,
+    await saveChannelData(row.Handle, channel);
+
+    const existingVideoIds = await getExistingVideoIds(row.Handle);
+    const videosToFetch = videos.filter((v) => !existingVideoIds.has(v.id));
+
+    logger.info(
+      `[${row.Handle}] - ${videosToFetch.length} videos need comment fetching (${existingVideoIds.size} already saved)`,
+    );
+
+    await mapWithConcurrency(
+      videosToFetch,
       Config.videosToCommentsChunkSize,
-      (video) =>
-        API.fetchVideoCommentsViaYtDlp(video.id, channel.id).then(
-          (comments) => ({ ...video, comments }),
-        ),
+      async (video) => {
+        const comments = await API.fetchVideoCommentsViaYtDlp(video.id, channel.id);
+        await saveVideoData(row.Handle, { ...video, comments });
+      },
       ({ completed, total, active }) =>
         logger.info(
           `[${row.Handle}] - Comments: ${completed}/${total} done, ${active} active`,
         ),
     );
-
-    const totalComments = videosWithComments.reduce(
-      (acc, curr) => acc + curr.comments.length,
-      0,
-    );
-    logger.info(`[${row.Handle}] - Found ${totalComments} comments`);
-
-    await saveData(row.Handle, { channel, videos: videosWithComments });
   } catch (error) {
     logger.error(`[${row.Handle}] - Error processing row: ${error}`);
   }
 }
 
-async function saveData(handle: string, data: Item) {
-  const { channel, videos } = data;
+async function saveChannelData(handle: string, channel: ChannelItem) {
+  await writeFile(
+    `./scripts/json/channels/${handle}.json`,
+    JSON.stringify({ channel }),
+    { encoding: "utf-8" },
+  );
+  logger.info(`[${handle}] - Channel data saved`);
+}
 
-  try {
-    await writeFile(
-      `./scripts/json/channels/${handle}.json`,
-      JSON.stringify(data),
-      { encoding: "utf-8" },
-    );
-    logger.info(`[${handle}] - Data saved`);
-  } catch (error) {
-    logger.error(`[${handle}] - Error saving full data: ${error}`);
-
-    try {
-      await writeFile(
-        `./scripts/json/channels/${handle}.json`,
-        JSON.stringify({ channel, videos: [] }),
-      );
-      logger.info(
-        `[${handle}] - Channel skeleton saved, writing videos separately`,
-      );
-
-      await mkdir(`./scripts/json/videos/${handle}`, { recursive: true });
-      const chunks = chunkArray(videos, 50);
-      for (let i = 0; i < chunks.length; i++) {
-        await writeFile(
-          `./scripts/json/videos/${handle}/videos-${i}.json`,
-          JSON.stringify(chunks[i]),
-        );
-      }
-      logger.info(`[${handle}] - Videos data saved`);
-    } catch (fallbackError) {
-      logger.error(`[${handle}] - Fallback save also failed: ${fallbackError}`);
-      throw fallbackError;
-    }
-  }
+async function saveVideoData(handle: string, video: VideoWithComments) {
+  await mkdir(`./scripts/json/videos/${handle}`, { recursive: true });
+  await writeFile(
+    `./scripts/json/videos/${handle}/${video.id}.json`,
+    JSON.stringify(video),
+    { encoding: "utf-8" },
+  );
 }
 
 run();

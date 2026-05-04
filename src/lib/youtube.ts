@@ -1,11 +1,12 @@
 import { execFile } from "child_process";
+
 import { promisify } from "util";
 import {
   ChannelItem,
   ChannelListResponse,
   CommentSnippet,
   PlaylistItem,
-  VideoListResponse
+  VideoListResponse,
 } from "./types";
 import { oldestVideoInPlaylist } from "./utils";
 
@@ -52,14 +53,61 @@ async function paginate<T>(
   return accumulated;
 }
 
-async function fetchYtDlpComments(videoId: string): Promise<YtDlpComment[]> {
-  const { stdout } = await execFileAsync(
-    "yt-dlp",
-    ["-j", "--write-comments", `https://www.youtube.com/watch?v=${videoId}`],
-    { maxBuffer: 100 * 1024 * 1024 },
+async function withExponentialBackoff<T>(
+  fn: () => Promise<T>,
+  {
+    maxRetries = 10,
+    baseDelay = 2_000,
+    maxDelay = 120_000,
+    jitter = 2_000,
+    shouldRetry = (_err: unknown): boolean => true,
+  } = {},
+): Promise<T> {
+  let attempt = 0;
+  for (;;) {
+    try {
+      return await fn();
+    } catch (err) {
+      attempt++;
+      if (attempt > maxRetries || !shouldRetry(err)) throw err;
+      const exponential = Math.min(baseDelay * 2 ** (attempt - 1), maxDelay);
+      const delay = exponential + Math.random() * jitter;
+      console.warn(
+        `yt-dlp retry ${attempt}/${maxRetries} after ${Math.round(delay / 1000)}s — ${err}`,
+      );
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+}
+
+function isRateLimitError(err: unknown): boolean {
+  const msg = String(err).toLowerCase();
+  return (
+    msg.includes("403") ||
+    msg.includes("429") ||
+    msg.includes("too many requests") ||
+    msg.includes("forbidden") ||
+    msg.includes("rate limit")
   );
-  const data = JSON.parse(stdout) as { comments?: YtDlpComment[] };
-  return data.comments ?? [];
+}
+
+async function fetchYtDlpComments(videoId: string): Promise<YtDlpComment[]> {
+  return withExponentialBackoff(
+    async () => {
+      const { stdout } = await execFileAsync(
+        "yt-dlp",
+        [
+          "-j",
+          "--write-comments",
+          `https://www.youtube.com/watch?v=${videoId}`,
+        ],
+        { maxBuffer: 100 * 1024 * 1024 },
+      );
+      const data = JSON.parse(stdout) as { comments?: YtDlpComment[] };
+      return data.comments ?? [];
+    },
+    { shouldRetry: isRateLimitError },
+  );
 }
 
 function mapYtDlpComment(
